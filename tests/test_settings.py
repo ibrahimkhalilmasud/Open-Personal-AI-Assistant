@@ -15,12 +15,16 @@ class SettingsTests(unittest.TestCase):
             os.environ["DATABASE"] = db_path
             os.environ["VECTOR_DB"] = vector_path
             os.environ["ENABLE_CAMERA"] = "true"
+            os.environ["AUTO_SCAN"] = "false"
+            os.environ["SCAN_INTERVAL"] = "120"
 
             settings = load_settings()
 
             self.assertEqual(settings.database, db_path)
             self.assertEqual(settings.vector_db, vector_path)
             self.assertTrue(settings.enable_camera)
+            self.assertFalse(settings.auto_scan)
+            self.assertEqual(settings.scan_interval, 120)
             self.assertTrue(Path(db_path).parent.exists())
             self.assertTrue(Path(vector_path).exists())
 

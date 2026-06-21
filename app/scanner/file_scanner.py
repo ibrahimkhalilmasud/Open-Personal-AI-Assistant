@@ -2,13 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-SUPPORTED_EXTENSIONS = {
-    ".pdf", ".docx", ".xlsx", ".pptx", ".txt", ".csv", ".md",
-    ".jpg", ".png", ".webp", ".tiff",
-    ".mp4", ".mov", ".avi",
-    ".mp3", ".wav", ".m4a",
-    ".zip",
-}
+from app.filetypes.supported import SUPPORTED_EXTENSIONS
 
 
 def scan_supported_files(vault_path: str) -> list[Path]:

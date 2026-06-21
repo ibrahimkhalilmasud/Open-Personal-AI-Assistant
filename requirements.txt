@@ -8,6 +8,7 @@ watchdog
 pillow
 opencv-python
 pypdf
+pymupdf
 python-docx
 pandas
 numpy
