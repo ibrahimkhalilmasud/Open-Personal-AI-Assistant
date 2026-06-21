@@ -19,6 +19,9 @@ class IndexedFile:
     modified_date: str
     sha256: str
     indexed: int
+    embedding_status: str
+    indexed_date: str | None
+    chunk_count: int
     last_scan: str
     extracted_text: str
     metadata: dict[str, str | int | float]
@@ -41,6 +44,9 @@ def index_file(file_path: Path) -> IndexedFile:
         modified_date=datetime.fromtimestamp(stats.st_mtime, UTC).isoformat(),
         sha256=compute_sha256(file_path),
         indexed=1,
+        embedding_status="pending",
+        indexed_date=None,
+        chunk_count=0,
         last_scan=now,
         extracted_text=extracted_text,
         metadata=metadata,

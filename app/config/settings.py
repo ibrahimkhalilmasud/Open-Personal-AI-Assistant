@@ -14,6 +14,9 @@ class Settings:
     ollama_url: str = "http://localhost:11434"
     vault_path: str = ""
     vector_db: str = "data/vector"
+    embedding_model: str = "all-MiniLM-L6-v2"
+    chunk_size: int = 500
+    chunk_overlap: int = 100
     database: str = "data/database.db"
     log_level: str = "INFO"
     default_model: str = "qwen3"
@@ -57,6 +60,9 @@ def load_settings() -> Settings:
         ollama_url=os.getenv("OLLAMA_URL", "http://localhost:11434"),
         vault_path=os.getenv("VAULT_PATH", ""),
         vector_db=os.getenv("VECTOR_DB", "data/vector"),
+        embedding_model=os.getenv("EMBEDDING_MODEL", "all-MiniLM-L6-v2"),
+        chunk_size=_to_int(os.getenv("CHUNK_SIZE"), 500),
+        chunk_overlap=_to_int(os.getenv("CHUNK_OVERLAP"), 100),
         database=database,
         log_level=os.getenv("LOG_LEVEL", "INFO"),
         default_model=os.getenv("DEFAULT_MODEL", "qwen3"),

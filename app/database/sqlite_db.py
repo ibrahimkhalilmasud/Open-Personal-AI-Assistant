@@ -15,6 +15,9 @@ FILES_COLUMNS = (
     "modified_date",
     "sha256",
     "indexed",
+    "embedding_status",
+    "indexed_date",
+    "chunk_count",
     "last_scan",
 )
 
@@ -44,6 +47,9 @@ def _files_schema_sql() -> str:
         modified_date TEXT NOT NULL,
         sha256 TEXT NOT NULL,
         indexed INTEGER NOT NULL DEFAULT 0,
+        embedding_status TEXT NOT NULL DEFAULT 'pending',
+        indexed_date TEXT,
+        chunk_count INTEGER NOT NULL DEFAULT 0,
         last_scan TEXT NOT NULL
     )
     """
@@ -52,12 +58,13 @@ def _files_schema_sql() -> str:
 def _ensure_files_table_schema(conn: sqlite3.Connection) -> None:
     conn.execute(_files_schema_sql())
     existing_columns = [row[1] for row in conn.execute("PRAGMA table_info(files)").fetchall()]
-    if tuple(existing_columns) == FILES_COLUMNS:
-        return
 
-    timestamp = datetime.now(UTC).strftime("%Y%m%d%H%M%S")
-    conn.execute(f"ALTER TABLE files RENAME TO files_legacy_{timestamp}")
-    conn.execute(_files_schema_sql())
+    if "embedding_status" not in existing_columns:
+        conn.execute("ALTER TABLE files ADD COLUMN embedding_status TEXT NOT NULL DEFAULT 'pending'")
+    if "indexed_date" not in existing_columns:
+        conn.execute("ALTER TABLE files ADD COLUMN indexed_date TEXT")
+    if "chunk_count" not in existing_columns:
+        conn.execute("ALTER TABLE files ADD COLUMN chunk_count INTEGER NOT NULL DEFAULT 0")
 
 
 def initialize_database(path: str) -> None:
@@ -100,14 +107,98 @@ def fetch_file_hashes(path: str) -> dict[str, str]:
     return {row[0]: row[1] for row in rows}
 
 
+def fetch_file_row(path: str, file_path: str) -> dict[str, Any] | None:
+    with sqlite3.connect(path) as conn:
+        row = conn.execute(
+            """
+            SELECT f.path, f.filename, f.extension, f.sha256, f.embedding_status, f.indexed_date,
+                   f.chunk_count, t.extracted_text
+            FROM files f
+            LEFT JOIN file_text t ON t.path = f.path
+            WHERE f.path = ?
+            """,
+            (file_path,),
+        ).fetchone()
+    if row is None:
+        return None
+    return {
+        "path": row[0],
+        "filename": row[1],
+        "extension": row[2],
+        "sha256": row[3],
+        "embedding_status": row[4],
+        "indexed_date": row[5],
+        "chunk_count": row[6],
+        "extracted_text": row[7] or "",
+    }
+
+
+def fetch_indexable_text_rows(path: str) -> list[dict[str, Any]]:
+    with sqlite3.connect(path) as conn:
+        rows = conn.execute(
+            """
+            SELECT f.path, f.filename, f.extension, f.sha256, f.embedding_status,
+                   f.indexed_date, COALESCE(f.chunk_count, 0), COALESCE(t.extracted_text, '')
+            FROM files f
+            LEFT JOIN file_text t ON t.path = f.path
+            WHERE f.indexed = 1
+            ORDER BY f.path ASC
+            """
+        ).fetchall()
+    return [
+        {
+            "path": row[0],
+            "filename": row[1],
+            "extension": row[2],
+            "sha256": row[3],
+            "embedding_status": row[4],
+            "indexed_date": row[5],
+            "chunk_count": int(row[6] or 0),
+            "extracted_text": row[7] or "",
+        }
+        for row in rows
+    ]
+
+
+def update_embedding_status(path: str, file_path: str, status: str, chunk_count: int = 0) -> None:
+    indexed_date = datetime.now(UTC).isoformat() if status == "indexed" else None
+    with sqlite3.connect(path) as conn:
+        conn.execute(
+            """
+            UPDATE files
+            SET embedding_status = ?,
+                indexed_date = COALESCE(?, indexed_date),
+                chunk_count = ?
+            WHERE path = ?
+            """,
+            (status, indexed_date, chunk_count, file_path),
+        )
+        conn.commit()
+
+
+def mark_embedding_pending(path: str, file_path: str) -> None:
+    with sqlite3.connect(path) as conn:
+        conn.execute(
+            """
+            UPDATE files
+            SET embedding_status = 'pending',
+                indexed_date = NULL,
+                chunk_count = 0
+            WHERE path = ?
+            """,
+            (file_path,),
+        )
+        conn.commit()
+
+
 def upsert_indexed_file(path: str, file_payload: dict[str, Any]) -> None:
     with sqlite3.connect(path) as conn:
         conn.execute(
             """
             INSERT INTO files (
                 path, filename, extension, file_size, created_date,
-                modified_date, sha256, indexed, last_scan
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                modified_date, sha256, indexed, embedding_status, indexed_date, chunk_count, last_scan
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(path) DO UPDATE SET
                 filename=excluded.filename,
                 extension=excluded.extension,
@@ -116,6 +207,9 @@ def upsert_indexed_file(path: str, file_payload: dict[str, Any]) -> None:
                 modified_date=excluded.modified_date,
                 sha256=excluded.sha256,
                 indexed=excluded.indexed,
+                embedding_status=excluded.embedding_status,
+                indexed_date=excluded.indexed_date,
+                chunk_count=excluded.chunk_count,
                 last_scan=excluded.last_scan
             """,
             (
@@ -127,6 +221,9 @@ def upsert_indexed_file(path: str, file_payload: dict[str, Any]) -> None:
                 file_payload["modified_date"],
                 file_payload["sha256"],
                 file_payload["indexed"],
+                file_payload.get("embedding_status", "pending"),
+                file_payload.get("indexed_date"),
+                int(file_payload.get("chunk_count", 0)),
                 file_payload["last_scan"],
             ),
         )
@@ -161,6 +258,37 @@ def upsert_indexed_file(path: str, file_payload: dict[str, Any]) -> None:
             ),
         )
         conn.commit()
+
+
+def keyword_search_rows(path: str, query: str, limit: int = 10) -> list[dict[str, Any]]:
+    q = query.strip().lower()
+    if not q:
+        return []
+    with sqlite3.connect(path) as conn:
+        rows = conn.execute(
+            """
+            SELECT f.path, f.filename, COALESCE(t.extracted_text, '')
+            FROM files f
+            LEFT JOIN file_text t ON t.path = f.path
+            WHERE lower(f.filename) LIKE ? OR lower(COALESCE(t.extracted_text, '')) LIKE ?
+            ORDER BY f.path ASC
+            LIMIT ?
+            """,
+            (f"%{q}%", f"%{q}%", max(1, limit)),
+        ).fetchall()
+    results: list[dict[str, Any]] = []
+    for row in rows:
+        text = row[2] or ""
+        snippet = text[:220] if text else row[1]
+        results.append(
+            {
+                "path": row[0],
+                "filename": row[1],
+                "text": text,
+                "snippet": snippet,
+            }
+        )
+    return results
 
 
 def remove_file(path: str, file_path: str) -> None:

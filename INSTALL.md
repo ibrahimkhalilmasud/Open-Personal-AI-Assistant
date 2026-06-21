@@ -14,3 +14,20 @@ Run:
 ```bash
 bash installers/install_macos.sh
 ```
+
+## After install
+
+1. Copy `.env.example` to `.env`.
+2. Set `VAULT_PATH`.
+3. Optional semantic search settings:
+   - `VECTOR_DB=data/vector`
+   - `EMBEDDING_MODEL=all-MiniLM-L6-v2`
+   - `CHUNK_SIZE=500`
+   - `CHUNK_OVERLAP=100`
+
+Then run:
+
+```bash
+python main.py --index
+python main.py --search "insurance renewal"
+```

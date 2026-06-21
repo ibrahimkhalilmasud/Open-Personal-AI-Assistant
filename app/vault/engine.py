@@ -7,12 +7,14 @@ from app.config.settings import Settings
 from app.database.sqlite_db import fetch_file_hashes, initialize_database, remove_file, upsert_indexed_file
 from app.indexer.file_indexer import collect_supported_files, index_file
 from app.logging.vault_logger import get_file_logger
+from app.vector.indexing import VectorIndexer
 
 
 class VaultEngine:
     def __init__(self, settings: Settings) -> None:
         self.settings = settings
         self.scan_logger = get_file_logger("scan", "scan.log")
+        self.vector_indexer = VectorIndexer(settings)
 
     def _vault_path_or_raise(self) -> str:
         if not self.settings.vault_path.strip():
@@ -31,19 +33,19 @@ class VaultEngine:
 
         for file_path in current_files:
             indexed_file = index_file(file_path)
-            payload = asdict(indexed_file)
             prior_hash = known_hashes.get(indexed_file.path)
 
             if prior_hash is None:
                 new_count += 1
+                upsert_indexed_file(self.settings.database, asdict(indexed_file))
             elif prior_hash != indexed_file.sha256:
                 changed_count += 1
-
-            upsert_indexed_file(self.settings.database, payload)
+                upsert_indexed_file(self.settings.database, asdict(indexed_file))
 
         deleted_paths = sorted(set(known_hashes) - current_paths)
         for file_path in deleted_paths:
             remove_file(self.settings.database, file_path)
+            self.vector_indexer.remove_path(file_path)
 
         summary = {
             "new": new_count,
@@ -65,8 +67,11 @@ class VaultEngine:
             return
         indexed_file = index_file(file_path)
         upsert_indexed_file(self.settings.database, asdict(indexed_file))
+        self.vector_indexer.index_path(indexed_file.path)
         self.scan_logger.info("indexed file | path=%s", indexed_file.path)
 
     def remove_single_path(self, file_path: Path) -> None:
-        remove_file(self.settings.database, str(file_path.resolve()))
-        self.scan_logger.info("removed file | path=%s", str(file_path.resolve()))
+        path = str(file_path.resolve())
+        remove_file(self.settings.database, path)
+        self.vector_indexer.remove_path(path)
+        self.scan_logger.info("removed file | path=%s", path)
