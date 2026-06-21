@@ -48,6 +48,9 @@ class VaultEventHandler(FileSystemEventHandler):
 
 
 def watch_vault(engine: VaultEngine) -> None:
+    if not engine.settings.vault_path.strip():
+        raise ValueError("VAULT_PATH is required")
+
     root = Path(engine.settings.vault_path)
     if not root.exists() or not root.is_dir():
         raise ValueError("VAULT_PATH does not exist or is not a directory")

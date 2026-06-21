@@ -14,11 +14,16 @@ class VaultEngine:
         self.settings = settings
         self.scan_logger = get_file_logger("scan", "scan.log")
 
+    def _vault_path_or_raise(self) -> str:
+        if not self.settings.vault_path.strip():
+            raise ValueError("VAULT_PATH is required")
+        return self.settings.vault_path
+
     def full_scan(self) -> dict[str, int]:
         initialize_database(self.settings.database)
 
         known_hashes = fetch_file_hashes(self.settings.database)
-        current_files = collect_supported_files(self.settings.vault_path)
+        current_files = collect_supported_files(self._vault_path_or_raise())
         current_paths = {str(path.resolve()) for path in current_files}
 
         new_count = 0

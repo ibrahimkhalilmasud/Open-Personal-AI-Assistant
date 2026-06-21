@@ -4,7 +4,6 @@ import argparse
 
 from app.core.system import create_system
 from app.vault.engine import VaultEngine
-from app.vault.watcher import watch_vault
 
 
 def parse_args() -> argparse.Namespace:
@@ -28,6 +27,11 @@ def main() -> None:
         return
 
     if args.watch:
+        try:
+            from app.vault.watcher import watch_vault
+        except ModuleNotFoundError as exc:
+            raise SystemExit("watchdog is required for --watch. Install dependencies from requirements.txt") from exc
+
         engine = VaultEngine(system.settings)
         watch_vault(engine)
         return

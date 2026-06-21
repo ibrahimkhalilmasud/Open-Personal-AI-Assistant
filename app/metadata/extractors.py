@@ -2,17 +2,32 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import cv2
-import pandas as pd
-from docx import Document
-from PIL import Image
-
 from app.filetypes.supported import DOCUMENT_EXTENSIONS, IMAGE_EXTENSIONS, VIDEO_EXTENSIONS
 
 try:
     import fitz  # type: ignore
 except Exception:  # pragma: no cover
     fitz = None
+
+try:
+    import cv2  # type: ignore
+except Exception:  # pragma: no cover
+    cv2 = None
+
+try:
+    import pandas as pd  # type: ignore
+except Exception:  # pragma: no cover
+    pd = None
+
+try:
+    from docx import Document  # type: ignore
+except Exception:  # pragma: no cover
+    Document = None
+
+try:
+    from PIL import Image  # type: ignore
+except Exception:  # pragma: no cover
+    Image = None
 
 
 def extract_document_text(path: Path) -> str:
@@ -23,13 +38,13 @@ def extract_document_text(path: Path) -> str:
     try:
         if extension in {".txt", ".md"}:
             return path.read_text(encoding="utf-8", errors="ignore")
-        if extension == ".docx":
+        if extension == ".docx" and Document is not None:
             doc = Document(str(path))
             return "\n".join(paragraph.text for paragraph in doc.paragraphs)
-        if extension == ".csv":
+        if extension == ".csv" and pd is not None:
             frame = pd.read_csv(path)
             return frame.to_csv(index=False)
-        if extension == ".xlsx":
+        if extension == ".xlsx" and pd is not None:
             frame = pd.read_excel(path)
             return frame.to_csv(index=False)
         if extension == ".pdf" and fitz is not None:
@@ -42,7 +57,7 @@ def extract_document_text(path: Path) -> str:
 
 
 def extract_image_metadata(path: Path) -> dict[str, str | int]:
-    if path.suffix.lower() not in IMAGE_EXTENSIONS:
+    if path.suffix.lower() not in IMAGE_EXTENSIONS or Image is None:
         return {}
 
     try:
@@ -60,7 +75,7 @@ def extract_image_metadata(path: Path) -> dict[str, str | int]:
 
 
 def extract_video_metadata(path: Path) -> dict[str, str | int | float]:
-    if path.suffix.lower() not in VIDEO_EXTENSIONS:
+    if path.suffix.lower() not in VIDEO_EXTENSIONS or cv2 is None:
         return {}
 
     capture = cv2.VideoCapture(str(path))
