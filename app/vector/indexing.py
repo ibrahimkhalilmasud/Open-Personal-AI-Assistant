@@ -78,6 +78,7 @@ class VectorIndexer:
             return "failed"
 
         existing_signature = self.vector_db.get_source_signature(source_path)
+        had_existing_vectors = bool(previous_signature or existing_signature)
         if (
             previous_signature == current_signature
             and existing_signature == current_signature
@@ -94,7 +95,7 @@ class VectorIndexer:
                 chunk_count=0,
                 index_signature=current_signature,
             )
-            return "updated" if previous_signature else "indexed"
+            return "updated" if had_existing_vectors else "indexed"
 
         chunks = chunk_document(
             text=text,
@@ -124,7 +125,7 @@ class VectorIndexer:
                 chunk_count=len(chunks),
                 index_signature=current_signature,
             )
-            return "updated" if previous_signature else "indexed"
+            return "updated" if had_existing_vectors else "indexed"
         except Exception:
             self.error_logger.exception("index_row failed | path=%s", source_path)
             update_embedding_status(self.settings.database, source_path, "error", chunk_count=0)

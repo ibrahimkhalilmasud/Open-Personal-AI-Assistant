@@ -54,10 +54,19 @@ def _to_int(value: str | None, default: int) -> int:
 
 
 def _load_env_file() -> None:
-    if load_dotenv is None:
-        return
     env_file = os.getenv("OPA_ENV_FILE", ".env")
-    load_dotenv(dotenv_path=env_file, override=False)
+    path = Path(env_file)
+    if load_dotenv is not None:
+        load_dotenv(dotenv_path=env_file, override=False)
+        return
+    if not path.exists():
+        return
+    for raw in path.read_text(encoding="utf-8").splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        os.environ.setdefault(key.strip(), value.strip())
 
 
 def _validate_settings(settings: Settings) -> str:
