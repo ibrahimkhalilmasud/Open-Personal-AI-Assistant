@@ -16,10 +16,11 @@ def _normalize_model_name(model_name: str) -> str:
 
 
 class EmbeddingEngine:
-    def __init__(self, model_name: str) -> None:
+    def __init__(self, model_name: str, batch_size: int = 64) -> None:
         self.model_name = _normalize_model_name(model_name)
         self._model = None
         self._dimension = 384
+        self._batch_size = max(1, batch_size)
 
         if os.getenv("OPA_DISABLE_REMOTE_EMBEDDINGS", "").strip().lower() in {"1", "true", "yes"}:
             return
@@ -39,7 +40,7 @@ class EmbeddingEngine:
         if not texts:
             return []
         if self._model is not None:
-            vectors = self._model.encode(list(texts), normalize_embeddings=True)
+            vectors = self._model.encode(list(texts), normalize_embeddings=True, batch_size=self._batch_size)
             return [list(map(float, vector)) for vector in vectors]
         return [self._fallback_embed(text) for text in texts]
 

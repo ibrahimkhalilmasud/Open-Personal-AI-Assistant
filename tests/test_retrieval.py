@@ -11,6 +11,7 @@ from app.vector.indexing import VectorIndexer
 class RetrievalTests(unittest.TestCase):
     def test_retrieve_returns_text_source_score(self) -> None:
         os.environ["OPA_DISABLE_REMOTE_EMBEDDINGS"] = "true"
+        os.environ["OPA_FORCE_LOCAL_VECTOR_DB"] = "true"
         with tempfile.TemporaryDirectory() as tmp:
             db_path = f"{tmp}/db.sqlite"
             vector_path = f"{tmp}/vector"
@@ -47,6 +48,10 @@ class RetrievalTests(unittest.TestCase):
             self.assertIn("text", results[0])
             self.assertIn("source", results[0])
             self.assertIn("score", results[0])
+            self.assertIn("filename", results[0])
+            self.assertIn("path", results[0])
+            self.assertIn("file_type", results[0])
+            self.assertIn("chunk_id", results[0])
 
 
 if __name__ == "__main__":
