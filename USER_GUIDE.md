@@ -21,6 +21,7 @@ VECTOR_DB=data/vector
 EMBEDDING_MODEL=all-MiniLM-L6-v2
 CHUNK_SIZE=500
 CHUNK_OVERLAP=100
+EMBED_BATCH_SIZE=64
 ```
 
 ## 2) Run a full scan
@@ -41,6 +42,8 @@ This monitors file add/modify/remove events and updates the database automatical
 
 ## 4) Check logs
 
+- `logs/application.log`
+- `logs/error.log`
 - `logs/scan.log`
 - `logs/watcher.log`
 - `logs/search.log`
@@ -59,6 +62,7 @@ This reads extracted text, creates overlapping chunks, generates embeddings, and
 python main.py --search "insurance renewal"
 python main.py --search "medical report 2024"
 python main.py --search "documents mentioning Brussels"
+python main.py --search "invoice" --folder Insurance --type pdf --after 2025 --top 10
 ```
 
 Search returns score, filename, path, and a snippet.

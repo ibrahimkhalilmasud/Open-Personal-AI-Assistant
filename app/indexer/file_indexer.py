@@ -22,6 +22,7 @@ class IndexedFile:
     embedding_status: str
     indexed_date: str | None
     chunk_count: int
+    index_signature: str
     last_scan: str
     extracted_text: str
     metadata: dict[str, str | int | float]
@@ -47,6 +48,7 @@ def index_file(file_path: Path) -> IndexedFile:
         embedding_status="pending",
         indexed_date=None,
         chunk_count=0,
+        index_signature="",
         last_scan=now,
         extracted_text=extracted_text,
         metadata=metadata,

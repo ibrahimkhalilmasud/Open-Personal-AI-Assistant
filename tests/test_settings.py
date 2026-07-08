@@ -11,15 +11,27 @@ class SettingsTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             db_path = str(Path(tmp) / "state" / "db.sqlite")
             vector_path = str(Path(tmp) / "vector")
+            env_file = Path(tmp) / ".env"
+            env_file.write_text(
+                "\n".join(
+                    [
+                        f"DATABASE={db_path}",
+                        f"VECTOR_DB={vector_path}",
+                        "ENABLE_CAMERA=true",
+                        "AUTO_SCAN=false",
+                        "SCAN_INTERVAL=120",
+                        "EMBEDDING_MODEL=all-MiniLM-L6-v2",
+                        "CHUNK_SIZE=500",
+                        "CHUNK_OVERLAP=100",
+                        "EMBED_BATCH_SIZE=32",
+                    ]
+                ),
+                encoding="utf-8",
+            )
 
-            os.environ["DATABASE"] = db_path
-            os.environ["VECTOR_DB"] = vector_path
-            os.environ["ENABLE_CAMERA"] = "true"
-            os.environ["AUTO_SCAN"] = "false"
-            os.environ["SCAN_INTERVAL"] = "120"
-            os.environ["EMBEDDING_MODEL"] = "all-MiniLM-L6-v2"
-            os.environ["CHUNK_SIZE"] = "500"
-            os.environ["CHUNK_OVERLAP"] = "100"
+            os.environ["OPA_ENV_FILE"] = str(env_file)
+            os.environ.pop("DATABASE", None)
+            os.environ.pop("VECTOR_DB", None)
 
             settings = load_settings()
 
@@ -31,6 +43,8 @@ class SettingsTests(unittest.TestCase):
             self.assertEqual(settings.embedding_model, "all-MiniLM-L6-v2")
             self.assertEqual(settings.chunk_size, 500)
             self.assertEqual(settings.chunk_overlap, 100)
+            self.assertEqual(settings.embed_batch_size, 32)
+            self.assertIn("status=ok", settings.settings_validation_report)
             self.assertTrue(Path(db_path).parent.exists())
             self.assertTrue(Path(vector_path).exists())
 

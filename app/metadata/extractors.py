@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from app.filetypes.supported import DOCUMENT_EXTENSIONS, IMAGE_EXTENSIONS, VIDEO_EXTENSIONS
+from app.logging import get_error_logger
 
 try:
     import fitz  # type: ignore
@@ -29,6 +30,8 @@ try:
 except Exception:  # pragma: no cover
     Image = None
 
+error_logger = get_error_logger("metadata.extractors")
+
 
 def extract_document_text(path: Path) -> str:
     extension = path.suffix.lower()
@@ -49,8 +52,11 @@ def extract_document_text(path: Path) -> str:
             return frame.to_csv(index=False)
         if extension == ".pdf" and fitz is not None:
             with fitz.open(path) as pdf:
+                if getattr(pdf, "is_encrypted", False):
+                    return ""
                 return "\n".join(page.get_text("text") for page in pdf)
     except Exception:
+        error_logger.exception("document extraction failed | path=%s", str(path))
         return ""
 
     return ""
@@ -71,6 +77,7 @@ def extract_image_metadata(path: Path) -> dict[str, str | int]:
                 "exif": str(exif_data),
             }
     except Exception:
+        error_logger.exception("image metadata extraction failed | path=%s", str(path))
         return {}
 
 
@@ -80,6 +87,7 @@ def extract_video_metadata(path: Path) -> dict[str, str | int | float]:
 
     capture = cv2.VideoCapture(str(path))
     if not capture.isOpened():
+        error_logger.error("video metadata extraction failed to open | path=%s", str(path))
         return {}
 
     try:

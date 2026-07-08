@@ -7,7 +7,7 @@ from watchdog.events import FileSystemEvent, FileSystemEventHandler
 from watchdog.observers import Observer
 
 from app.filetypes.supported import SUPPORTED_EXTENSIONS
-from app.logging.vault_logger import get_file_logger
+from app.logging import get_error_logger, get_file_logger
 from app.vault.engine import VaultEngine
 
 
@@ -15,6 +15,7 @@ class VaultEventHandler(FileSystemEventHandler):
     def __init__(self, engine: VaultEngine) -> None:
         self.engine = engine
         self.logger = get_file_logger("watcher", "watcher.log")
+        self.error_logger = get_error_logger("watcher")
 
     def _should_process(self, event: FileSystemEvent) -> bool:
         if event.is_directory:
@@ -26,15 +27,21 @@ class VaultEventHandler(FileSystemEventHandler):
         if not self._should_process(event):
             return
         path = Path(event.src_path)
-        self.engine.index_single_path(path)
-        self.logger.info("file added | %s", event.src_path)
+        try:
+            self.engine.index_single_path(path)
+            self.logger.info("file added | %s", event.src_path)
+        except Exception:
+            self.error_logger.exception("watcher on_created failed | %s", event.src_path)
 
     def on_modified(self, event: FileSystemEvent) -> None:
         if not self._should_process(event):
             return
         path = Path(event.src_path)
-        self.engine.index_single_path(path)
-        self.logger.info("file modified | %s", event.src_path)
+        try:
+            self.engine.index_single_path(path)
+            self.logger.info("file modified | %s", event.src_path)
+        except Exception:
+            self.error_logger.exception("watcher on_modified failed | %s", event.src_path)
 
     def on_deleted(self, event: FileSystemEvent) -> None:
         if event.is_directory:
@@ -43,8 +50,11 @@ class VaultEventHandler(FileSystemEventHandler):
         if suffix not in SUPPORTED_EXTENSIONS:
             return
         path = Path(event.src_path)
-        self.engine.remove_single_path(path)
-        self.logger.info("file removed | %s", event.src_path)
+        try:
+            self.engine.remove_single_path(path)
+            self.logger.info("file removed | %s", event.src_path)
+        except Exception:
+            self.error_logger.exception("watcher on_deleted failed | %s", event.src_path)
 
 
 def watch_vault(engine: VaultEngine) -> None:

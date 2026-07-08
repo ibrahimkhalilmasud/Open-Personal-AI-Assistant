@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 
 from app.core.system import create_system
+from app.logging import get_application_logger, get_error_logger
 from app.search import SearchEngine
 from app.vault.engine import VaultEngine
 
@@ -14,72 +15,97 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--index", action="store_true", help="Build semantic vector index")
     parser.add_argument("--auto-index", action="store_true", help="Run scan+index and continuous auto indexing")
     parser.add_argument("--search", type=str, help="Run hybrid semantic search")
+    parser.add_argument("--folder", type=str, help="Filter search by folder name or path fragment")
+    parser.add_argument("--type", dest="file_type", type=str, help="Filter search by file extension")
+    parser.add_argument("--after", type=str, help="Filter search by modified_date >= value")
+    parser.add_argument("--before", type=str, help="Filter search by modified_date <= value")
+    parser.add_argument("--top", type=int, default=10, help="Maximum number of search results")
     return parser.parse_args()
 
 
 def main() -> None:
+    app_logger = get_application_logger("main")
+    error_logger = get_error_logger("main")
     args = parse_args()
     system = create_system()
+    app_logger.info("startup | %s", system.settings.settings_validation_report)
 
-    if args.scan:
-        engine = VaultEngine(system.settings)
-        summary = engine.full_scan()
-        print(
-            "Scan complete | "
-            f"total={summary['total']} new={summary['new']} changed={summary['changed']} deleted={summary['deleted']}"
-        )
-        return
-
-    if args.watch:
-        try:
-            from app.vault.watcher import watch_vault
-        except ModuleNotFoundError as exc:
-            raise SystemExit("watchdog is required for --watch. Install dependencies from requirements.txt") from exc
-
-        engine = VaultEngine(system.settings)
-        watch_vault(engine)
-        return
-
-    if args.index:
-        engine = VaultEngine(system.settings)
-        scan_summary = engine.full_scan()
-        index_summary = engine.vector_indexer.index_all()
-        print(
-            "Index complete | "
-            f"scan_total={scan_summary['total']} new={scan_summary['new']} changed={scan_summary['changed']} "
-            f"indexed={index_summary.indexed} skipped={index_summary.skipped} failed={index_summary.failed}"
-        )
-        return
-
-    if args.auto_index:
-        try:
-            from app.vault.watcher import watch_vault
-        except ModuleNotFoundError as exc:
-            raise SystemExit("watchdog is required for --auto-index. Install dependencies from requirements.txt") from exc
-
-        engine = VaultEngine(system.settings)
-        engine.full_scan()
-        engine.vector_indexer.index_all()
-        watch_vault(engine)
-        return
-
-    if args.search is not None:
-        search_engine = SearchEngine(system.settings)
-        results = search_engine.search(args.search, top_k=10)
-        if not results:
-            print("No results found.")
+    try:
+        if args.scan:
+            engine = VaultEngine(system.settings)
+            summary = engine.full_scan()
+            print(
+                "Scan complete | "
+                f"total={summary['total']} new={summary['new']} changed={summary['changed']} deleted={summary['deleted']}"
+            )
             return
-        for index, result in enumerate(results, start=1):
-            print(f"Result {index}")
-            print(f"Score: {result.score:.2f}")
-            print(f"File: {result.filename}")
-            print(f"Path: {result.path}")
-            print("Snippet:")
-            print(f"\"{result.snippet}\"")
-            print()
-        return
 
-    print(system.summary())
+        if args.watch:
+            try:
+                from app.vault.watcher import watch_vault
+            except ModuleNotFoundError as exc:
+                raise SystemExit("watchdog is required for --watch. Install dependencies from requirements.txt") from exc
+
+            engine = VaultEngine(system.settings)
+            watch_vault(engine)
+            return
+
+        if args.index:
+            engine = VaultEngine(system.settings)
+            scan_summary = engine.full_scan()
+            index_summary = engine.vector_indexer.index_all()
+            print(
+                "Index complete | "
+                f"scan_total={scan_summary['total']} new={scan_summary['new']} changed={scan_summary['changed']} "
+                f"deleted={scan_summary['deleted']} indexed={index_summary.indexed} updated={index_summary.updated} "
+                f"skipped={index_summary.skipped} failed={index_summary.failed} "
+                f"duration={index_summary.duration_seconds:.2f}s"
+            )
+            return
+
+        if args.auto_index:
+            try:
+                from app.vault.watcher import watch_vault
+            except ModuleNotFoundError as exc:
+                raise SystemExit("watchdog is required for --auto-index. Install dependencies from requirements.txt") from exc
+
+            engine = VaultEngine(system.settings)
+            engine.full_scan()
+            engine.vector_indexer.index_all()
+            watch_vault(engine)
+            return
+
+        if args.search is not None:
+            search_engine = SearchEngine(system.settings)
+            results = search_engine.search(
+                args.search,
+                top_k=max(1, args.top),
+                folder=args.folder,
+                file_type=args.file_type,
+                after=args.after,
+                before=args.before,
+            )
+            if not results:
+                print("No results found.")
+                return
+            for index, result in enumerate(results, start=1):
+                print(f"Result {index}")
+                print(f"Score: {result.score:.2f}")
+                print(f"File: {result.filename}")
+                print(f"Path: {result.path}")
+                print(f"Type: {result.file_type}")
+                print("Snippet:")
+                print(f"\"{result.snippet}\"")
+                print()
+            return
+
+        print(system.summary())
+    except ValueError as exc:
+        error_logger.exception("runtime validation error")
+        raise SystemExit(str(exc)) from exc
+    except Exception as exc:
+        error_logger.exception("unexpected runtime error")
+        raise SystemExit(f"Unexpected error: {exc}") from exc
 
 
 if __name__ == "__main__":
