@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 
 import uvicorn
 
@@ -10,6 +11,7 @@ from app.agents.history import AgentHistoryStore
 from app.agents.registry import AgentRegistry
 from app.api.server import create_app
 from app.core.system import create_system
+from app.database.sqlite_db import initialize_database
 from app.knowledge_graph.query import KnowledgeGraphQuery
 from app.knowledge_graph.timeline import TimelineEngine
 from app.logging import get_application_logger, get_error_logger
@@ -21,8 +23,21 @@ from app.tasks.executor import TaskExecutionEngine
 from app.tasks.history import TaskHistoryStore
 from app.tasks.planner import TaskPlanner
 from app.tasks.queue import TaskQueue
+from app.tools import PermissionLevels, ToolExecutor, ToolPermissionManager, ToolRegistry
 from app.vault.engine import VaultEngine
+from app.workflows.engine import WorkflowEngine
 from app.workflows.registry import WorkflowRegistry
+
+
+BUILTIN_TOOL_IDS = {
+    "tool.file_search",
+    "tool.document_reader",
+    "tool.metadata",
+    "tool.memory_search",
+    "tool.knowledge_graph",
+    "tool.vector_search",
+    "tool.summarization",
+}
 
 
 def parse_args() -> argparse.Namespace:
@@ -252,7 +267,7 @@ def main() -> None:
         if args.timeline is not None:
             memory_engine = LongTermMemoryEngine(system.settings.database)
             memory_engine.refresh_from_index()
-            events = TimelineEngine(system.settings.database).query(args.timeline)
+            events = memory_engine.timeline.query(args.timeline)
             print(f"Timeline events for {args.timeline}: {len(events)}")
             for event in events[:20]:
                 print(
@@ -290,6 +305,97 @@ def main() -> None:
             for fact in person_graph["facts"][:10]:
                 print(f"- {fact['fact']} (source={fact['source_document']})")
             return
+
+        if agents_flag or agent_list_flag:
+            registry = AgentRegistry()
+            registry.discover()
+            print(json.dumps(registry.list_agents(), indent=2))
+            return
+
+        if workflow_list_flag:
+            workflows = WorkflowRegistry()
+            print(json.dumps(workflows.list_workflows(), indent=2))
+            return
+
+        if plan_value is not None:
+            agents = AgentRegistry()
+            agents.discover()
+            planner = TaskPlanner(agents)
+            queue = TaskQueue(system.settings.database)
+            tasks = planner.plan(plan_value, requested_by="cli")
+            queue.enqueue_many(tasks)
+            print(f"Planned tasks: {len(tasks)}")
+            return
+
+        if execute_flag:
+            registry = AgentRegistry()
+            registry.discover()
+            queue = TaskQueue(system.settings.database)
+            context_engine = ContextEngine(system.settings)
+            agent_history = AgentHistoryStore(system.settings.database)
+            task_history = TaskHistoryStore(system.settings.database)
+            _, tool_executor, _ = _build_tooling(system.settings.database)
+            executor = AgentExecutor(registry, context_engine, agent_history, tool_executor=tool_executor)
+            engine = TaskExecutionEngine(queue, executor, task_history)
+            results = engine.execute(approve_pending=True)
+            print(f"Executed tasks: {len(results)}")
+            return
+
+        tooling_requested = any(
+            [
+                tools_flag,
+                tool_list_flag,
+                bool(tool_info_value),
+                bool(tool_test_value),
+                plugin_list_flag,
+                bool(plugin_load_value),
+                bool(plugin_unload_value),
+            ]
+        )
+        if tooling_requested:
+            tool_registry, tool_executor, plugin_manager = _build_tooling(system.settings.database)
+
+            if tools_flag or tool_list_flag:
+                print(json.dumps(tool_registry.list_tools(), indent=2))
+                return
+
+            if tool_info_value:
+                tool = tool_registry.get_tool(str(tool_info_value))
+                if tool is None:
+                    print(f"Tool not found: {tool_info_value}")
+                    return
+                print(json.dumps(tool.descriptor().__dict__, indent=2))
+                return
+
+            if tool_test_value:
+                tool = tool_registry.get_tool(str(tool_test_value))
+                if tool is None:
+                    print(f"Tool not found: {tool_test_value}")
+                    return
+                inputs = _default_tool_test_inputs(tool.name)
+                result = tool_executor.execute(tool.tool_id, inputs, agent_name="cli", workflow_name="tool-test")
+                print(json.dumps(result, indent=2))
+                return
+
+            if plugin_list_flag:
+                discovered = plugin_manager.loader.discover()
+                installed = plugin_manager.list_plugins()
+                print(json.dumps({"discovered": discovered, "installed": installed}, indent=2))
+                return
+
+            if plugin_load_value:
+                ok, message = plugin_manager.load_plugin(str(plugin_load_value))
+                print(message)
+                if not ok:
+                    raise SystemExit(1)
+                return
+
+            if plugin_unload_value:
+                ok, message = plugin_manager.unload_plugin(str(plugin_unload_value))
+                print(message)
+                if not ok:
+                    raise SystemExit(1)
+                return
 
         print(system.summary())
     except ValueError as exc:

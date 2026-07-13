@@ -9,6 +9,45 @@ Local-first personal knowledge platform with indexing, retrieval, persistent mem
 - Internal Python SDK under `app/sdk/`
 - API key authentication, middleware, health/status/metrics endpoints
 - Migration-safe API/service tables (`api_keys`, `api_requests`, `service_metrics`, `service_health`, `api_audit_log`)
+Local-first personal knowledge platform with persistent indexing, retrieval, hybrid search, and a persistent memory + knowledge graph engine.
+
+## Phase 7 scope (tool execution framework + plugin SDK)
+
+- persistent vector storage (ChromaDB + durable local fallback)
+- incremental indexing using hash + modified date + model/chunk signature
+- batch embedding support (`EMBED_BATCH_SIZE`)
+- hybrid semantic + keyword + metadata search
+- retrieval schema with normalized score and file metadata
+- persistent memory layers:
+  - conversation memory
+  - preference memory
+  - project memory
+  - knowledge memory (document-supported facts only)
+- SQLite-backed knowledge graph:
+  - entities
+  - relationships
+  - timelines
+  - summary cache
+- rule-based entity extraction and entity resolution with incremental updates
+- rotating logs:
+  - `logs/application.log`
+  - `logs/error.log`
+  - `logs/search.log`
+  - `logs/scan.log`
+  - `logs/watcher.log`
+- tool execution framework:
+  - `app/tools/base_tool.py` standardized tool contract
+  - `app/tools/tool_registry.py` auto discovery/registration
+  - `app/tools/tool_executor.py` permission-gated execution + history
+  - `app/tools/tool_permissions.py` principal permission model
+  - `app/tools/tool_validation.py` structured validation and runtime checks
+  - built-in tools: `FileSearchTool`, `DocumentReaderTool`, `MetadataTool`, `MemorySearchTool`, `KnowledgeGraphTool`, `VectorSearchTool`, `SummarizationTool`
+- plugin SDK:
+  - `app/plugins/sdk.py` plugin base contract
+  - `app/plugins/manifest.py` plugin metadata schema
+  - `app/plugins/loader.py` load/unload/reload/validate/list
+  - `app/plugins/sandbox.py` untrusted permission restrictions
+  - `app/plugins/manager.py` plugin lifecycle orchestration
 
 ## Setup
 

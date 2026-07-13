@@ -34,6 +34,38 @@
 - `installed_tools`
 - `installed_plugins`
 
+## Tool architecture (Phase 7)
+
+- Base contract: `app/tools/base_tool.py`
+  - required metadata: `tool_id`, `name`, `version`, `description`, `category`, `author`, `permissions`, `input_schema`, `output_schema`
+  - lifecycle methods: `initialize()`, `validate()`, `execute()`, `cleanup()`
+- Discovery and registration: `app/tools/tool_discovery.py`, `app/tools/tool_registry.py`
+- Execution engine: `app/tools/tool_executor.py`
+  - execution metadata: `execution_id`, `agent_name`, `workflow_name`, `start_time`, `finish_time`, `duration`, `status`, `tool_inputs`, `tool_outputs`, `confidence`, `citations`
+  - persistent history: `tool_history`, `tool_metrics`
+- Permission and validation:
+  - `app/tools/tool_permissions.py`
+  - `app/tools/tool_validation.py`
+- Chaining support: `ToolExecutor.execute_chain()`
+
+## Plugin SDK
+
+- `app/plugins/manifest.py` defines plugin metadata contract.
+- `app/plugins/sdk.py` defines `PluginBase` lifecycle contract.
+- `app/plugins/validator.py` enforces required plugin files and manifest fields.
+- `app/plugins/loader.py` supports `load_plugin`, `unload_plugin`, `reload_plugin`, `list_plugins`, and `validate_plugin`.
+- `app/plugins/sandbox.py` enforces untrusted plugin permission restrictions.
+- `app/plugins/manager.py` orchestrates discovery and lifecycle operations.
+
+## SQLite schema additions (phase 7)
+
+- `tools`
+- `tool_history`
+- `plugins`
+- `plugin_history`
+- `permissions`
+- `tool_metrics`
+
 ## Run tests
 
 ```bash
