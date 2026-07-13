@@ -7,13 +7,21 @@ from app.agents.history import AgentHistoryStore
 from app.agents.registry import AgentRegistry
 from app.agents.result import AgentResult
 from app.tasks.models import Task
+from app.tools.tool_executor import ToolExecutor
 
 
 class AgentExecutor:
-    def __init__(self, registry: AgentRegistry, context_engine: ContextEngine, history_store: AgentHistoryStore) -> None:
+    def __init__(
+        self,
+        registry: AgentRegistry,
+        context_engine: ContextEngine,
+        history_store: AgentHistoryStore,
+        tool_executor: ToolExecutor | None = None,
+    ) -> None:
         self.registry = registry
         self.context_engine = context_engine
         self.history_store = history_store
+        self.tool_executor = tool_executor
 
     def execute(self, task: Task, workflow: str | None = None) -> AgentResult:
         started_at = datetime.now(UTC)
@@ -29,7 +37,11 @@ class AgentExecutor:
         try:
             agent.initialize()
             context = self.context_engine.build(task.title, task.description).to_dict()
+            if self.tool_executor is not None:
+                context["tool_executor_available"] = True
+                context["tool_executor_mode"] = "registry"
             payload = agent.execute(task.to_dict(), context)
+            payload = self._apply_tool_chain(task, payload)
 
             if not self._validate_payload(payload):
                 return self._error_result(
@@ -70,6 +82,38 @@ class AgentExecutor:
                 citations=result.citations,
             )
             return result
+
+    def _apply_tool_chain(self, task: Task, payload: dict[str, object]) -> dict[str, object]:
+            if self.tool_executor is None:
+                return payload
+            chain = payload.get("tool_chain")
+            if not isinstance(chain, list) or not chain:
+                return payload
+
+            history = self.tool_executor.execute_chain(
+                chain=chain,
+                agent_name=task.assigned_agent,
+                workflow_name=task.workflow,
+                initial_payload={"question": task.description},
+            )
+            payload = dict(payload)
+            payload["tool_history"] = history
+            if history and history[-1].get("status") == "completed":
+                final_outputs = history[-1].get("tool_outputs", {})
+                if isinstance(final_outputs, dict):
+                    details = final_outputs.get("summary") or final_outputs.get("answer")
+                    if details:
+                        payload["details"] = str(details)
+                citations: list[str] = []
+                for item in history:
+                    citations.extend([str(source) for source in item.get("citations", []) if str(source).strip()])
+                if citations:
+                    payload["citations"] = citations[:10]
+                payload["confidence"] = max(
+                    float(payload.get("confidence", 0.0)),
+                    float(history[-1].get("confidence", 0.0)),
+                )
+            return payload
         except Exception as exc:
             return self._error_result(
                 task=task,

@@ -78,3 +78,31 @@ Behavior:
 - `--timeline` returns timeline events by date prefix (`YYYY` or `YYYY-MM`)
 - `--project` returns project summary + related graph connections
 - `--person` returns person entities, connected relationships, and known facts
+
+## 9) Tool execution framework
+
+```bash
+python main.py --tools
+python main.py --tool-list
+python main.py --tool-info FileSearchTool
+python main.py --tool-test FileSearchTool
+```
+
+Behavior:
+- tools are auto-discovered from `app/tools/` and plugin registrations
+- every tool run is permission-checked before execution
+- tool execution history is stored in SQLite (`tool_history`, `tool_metrics`)
+
+## 10) Plugin SDK lifecycle
+
+```bash
+python main.py --plugin-list
+python main.py --plugin-load sample_plugin
+python main.py --plugin-unload sample_plugin
+```
+
+Plugin package structure:
+- required: `manifest.json`, `plugin.py`, `README.md`
+- optional: `requirements.txt`
+
+Untrusted plugins run through sandbox permission checks that block unapproved internet access, destructive filesystem permissions, and database write permissions unless explicitly trusted.
