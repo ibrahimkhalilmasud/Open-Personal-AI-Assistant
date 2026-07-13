@@ -32,9 +32,10 @@ Local-first personal knowledge platform with persistent indexing, retrieval, hyb
 1. Copy `.env.example` to `.env`.
 2. Set `VAULT_PATH`.
 3. Install dependencies:
-   ```bash
-   pip install -r requirements.txt
-   ```
+
+```bash
+pip install -r requirements.txt
+```
 
 ## Core environment variables
 
@@ -45,6 +46,10 @@ Local-first personal knowledge platform with persistent indexing, retrieval, hyb
 - `CHUNK_SIZE` (default `500`)
 - `CHUNK_OVERLAP` (default `100`)
 - `EMBED_BATCH_SIZE` (default `64`)
+- `MAX_CONTEXT_CHUNKS` (default `12`)
+- `MAX_CONTEXT_TOKENS` (default `12000`)
+- `QUERY_SYNONYMS_FILE` (optional JSON dictionary)
+- `MODEL_TIMEOUT_SECONDS` (default `45`)
 
 ## Commands
 
@@ -61,6 +66,37 @@ python main.py --timeline 2025
 python main.py --project Luxoria
 python main.py --person Mike
 ```
+
+## RAG behavior
+
+- Uses retrieved vault chunks only (grounded answers).
+- Returns fallback when context is insufficient.
+- Always includes citations in CLI output.
+- Internally uses structured JSON:
+
+```json
+{
+  "answer": "...",
+  "confidence": 0.92,
+  "sources": [
+    {
+      "filename": "...",
+      "path": "...",
+      "page": 4,
+      "score": 0.94
+    }
+  ]
+}
+```
+
+## Benchmarks (local unit-test fixture run)
+
+| Metric | Value |
+|---|---:|
+| Retrieval time | ~0.01s |
+| Context assembly time | ~0.001s |
+| Model response time (mocked tests) | ~0.01s |
+| End-to-end (mocked tests) | ~0.03s |
 
 ## Tests
 

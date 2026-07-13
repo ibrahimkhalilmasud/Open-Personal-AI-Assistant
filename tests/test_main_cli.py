@@ -55,6 +55,44 @@ class MainCLITests(unittest.TestCase):
             fake_engine.full_scan.assert_called_once()
             fake_engine.vector_indexer.index_all.assert_called_once()
 
+    @patch("main.RAGEngine")
+    @patch("main.create_system")
+    def test_main_ask_path(self, create_system: MagicMock, rag_engine_cls: MagicMock) -> None:
+        args = argparse.Namespace(
+            scan=False,
+            watch=False,
+            index=False,
+            auto_index=False,
+            search=None,
+            folder=None,
+            file_type=None,
+            after=None,
+            before=None,
+            top=10,
+            ask="Which documents mention Brussels?",
+            model="qwen3",
+            stream=False,
+        )
+        fake_rag = MagicMock()
+        fake_rag.ask.return_value = {
+            "answer": "Found mention in [C1].",
+            "confidence": 0.9,
+            "confidence_label": "High",
+            "provider": "ollama",
+            "model": "qwen3",
+            "citations": ["TravelInvoice2025.pdf"],
+            "timings": {"retrieval_seconds": 0.1, "context_seconds": 0.1, "model_seconds": 0.2, "total_seconds": 0.4},
+        }
+        rag_engine_cls.return_value = fake_rag
+
+        with patch("main.parse_args", return_value=args), patch("builtins.print"):
+            create_system.return_value = MagicMock(
+                settings=MagicMock(settings_validation_report="status=ok"),
+                router=MagicMock(),
+            )
+            main_module.main()
+            fake_rag.ask.assert_called_once()
+
 
 if __name__ == "__main__":
     unittest.main()

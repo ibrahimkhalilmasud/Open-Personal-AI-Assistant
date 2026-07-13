@@ -1,77 +1,64 @@
 # USER GUIDE
 
-## 1) Select your vault folder
-Open `.env` and set:
+## 1) Configure your vault
+
+Set `.env` values:
 
 ```env
 VAULT_PATH=/home/user/PersonalVault
+MAX_CONTEXT_CHUNKS=12
+MAX_CONTEXT_TOKENS=12000
+DEFAULT_MODEL=qwen3
 ```
 
-Examples:
-- Windows: `D:\PersonalVault`
-- Linux: `/home/user/PersonalVault`
-- macOS: `/Users/user/PersonalVault`
-
-Optional scan controls:
+Optional:
 
 ```env
-AUTO_SCAN=true
-SCAN_INTERVAL=300
-VECTOR_DB=data/vector
-EMBEDDING_MODEL=all-MiniLM-L6-v2
-CHUNK_SIZE=500
-CHUNK_OVERLAP=100
-EMBED_BATCH_SIZE=64
+QUERY_SYNONYMS_FILE=/absolute/path/to/synonyms.json
+MODEL_TIMEOUT_SECONDS=45
 ```
 
-## 2) Run a full scan
+## 2) Build and maintain vault index
 
 ```bash
 python main.py --scan
-```
-
-This recursively scans supported files and updates the database.
-
-## 3) Run live watching
-
-```bash
+python main.py --index
 python main.py --watch
 ```
 
-This monitors file add/modify/remove events and updates the database automatically.
-
-## 4) Check logs
-
-- `logs/application.log`
-- `logs/error.log`
-- `logs/scan.log`
-- `logs/watcher.log`
-- `logs/search.log`
-
-## 5) Build semantic index
-
-```bash
-python main.py --index
-```
-
-This reads extracted text, creates overlapping chunks, generates embeddings, and stores vectors in ChromaDB.
-
-## 6) Run semantic + hybrid search
+## 3) Search directly
 
 ```bash
 python main.py --search "insurance renewal"
-python main.py --search "medical report 2024"
-python main.py --search "documents mentioning Brussels"
 python main.py --search "invoice" --folder Insurance --type pdf --after 2025 --top 10
 ```
 
-Search returns score, filename, path, and a snippet.
-
-## 7) Run automatic background indexing
+## 4) Ask grounded questions (RAG)
 
 ```bash
-python main.py --auto-index
+python main.py --ask "Summarize my medical history"
+python main.py --ask "Show every insurance document"
+python main.py --ask "Which documents mention Brussels?"
+python main.py --ask "Summarize my PhD research"
 ```
+
+Streaming when provider supports it:
+
+```bash
+python main.py --ask "Summarize my research" --stream
+```
+
+## 5) Understand answer output
+
+CLI prints:
+
+- grounded answer
+- confidence score and label (High/Medium/Low)
+- provider/model used
+- citations (filename + page when available)
+- timing metrics (retrieval/context/model/total)
+
+If context is missing, response is:
 
 This runs initial scan/index and keeps vectors updated for file changes.
 
