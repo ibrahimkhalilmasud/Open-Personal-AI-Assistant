@@ -44,6 +44,11 @@ python main.py --watch
 python main.py --auto-index
 python main.py --search "insurance"
 python main.py --search "invoice" --folder Insurance --type pdf --after 2025 --top 10
+python main.py --agents
+python main.py --agent-list
+python main.py --workflow-list
+python main.py --plan "Prepare my Bali trip"
+python main.py --execute
 ```
 
 ## Tests

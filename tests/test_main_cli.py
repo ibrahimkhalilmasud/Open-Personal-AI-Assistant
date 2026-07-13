@@ -19,6 +19,22 @@ class MainCLITests(unittest.TestCase):
             args = main_module.parse_args()
         self.assertTrue(args.auto_index)
 
+        with patch("sys.argv", ["main.py", "--agent-list"]):
+            args = main_module.parse_args()
+        self.assertTrue(args.agent_list)
+
+        with patch("sys.argv", ["main.py", "--workflow-list"]):
+            args = main_module.parse_args()
+        self.assertTrue(args.workflow_list)
+
+        with patch("sys.argv", ["main.py", "--plan", "Prepare my Bali trip"]):
+            args = main_module.parse_args()
+        self.assertEqual(args.plan, "Prepare my Bali trip")
+
+        with patch("sys.argv", ["main.py", "--execute"]):
+            args = main_module.parse_args()
+        self.assertTrue(args.execute)
+
     @patch("main.create_system")
     @patch("main.VaultEngine")
     def test_main_index_path(self, vault_engine_cls: MagicMock, create_system: MagicMock) -> None:
@@ -33,6 +49,11 @@ class MainCLITests(unittest.TestCase):
             after=None,
             before=None,
             top=10,
+            agents=False,
+            agent_list=False,
+            workflow_list=False,
+            plan=None,
+            execute=False,
         )
         with patch("main.parse_args", return_value=args), patch("builtins.print"):
             fake_engine = MagicMock()

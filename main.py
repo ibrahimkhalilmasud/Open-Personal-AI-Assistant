@@ -2,10 +2,19 @@ from __future__ import annotations
 
 import argparse
 
+from app.agents.context import ContextEngine
+from app.agents.executor import AgentExecutor
+from app.agents.history import AgentHistoryStore
+from app.agents.registry import AgentRegistry
 from app.core.system import create_system
 from app.logging import get_application_logger, get_error_logger
 from app.search import SearchEngine
+from app.tasks.executor import TaskExecutionEngine
+from app.tasks.history import TaskHistoryStore
+from app.tasks.planner import TaskPlanner
+from app.tasks.queue import TaskQueue
 from app.vault.engine import VaultEngine
+from app.workflows.registry import WorkflowRegistry
 
 
 def parse_args() -> argparse.Namespace:
@@ -20,6 +29,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--after", type=str, help="Filter search by modified_date >= value")
     parser.add_argument("--before", type=str, help="Filter search by modified_date <= value")
     parser.add_argument("--top", type=int, default=10, help="Maximum number of search results")
+    parser.add_argument("--agents", action="store_true", help="Show discovered agents")
+    parser.add_argument("--agent-list", action="store_true", help="Show discovered agents")
+    parser.add_argument("--workflow-list", action="store_true", help="Show available workflows")
+    parser.add_argument("--plan", type=str, help="Create structured task plan from a natural language request")
+    parser.add_argument("--execute", action="store_true", help="Approve pending tasks and execute them sequentially")
     return parser.parse_args()
 
 
@@ -97,6 +111,65 @@ def main() -> None:
                 print("Snippet:")
                 print(f"\"{result.snippet}\"")
                 print()
+            return
+
+        if getattr(args, "agents", False) or getattr(args, "agent_list", False):
+            registry = AgentRegistry()
+            registry.discover()
+            agents = registry.list_agents()
+            if not agents:
+                print("No agents registered.")
+                return
+            for agent in agents:
+                capabilities = ",".join(agent["capabilities"])
+                print(f"{agent['name']} | v{agent['version']} | {agent['description']} | capabilities={capabilities}")
+            return
+
+        if getattr(args, "workflow_list", False):
+            registry = WorkflowRegistry()
+            workflows = registry.list_workflows()
+            if not workflows:
+                print("No workflows registered.")
+                return
+            for workflow in workflows:
+                print(workflow)
+            return
+
+        if getattr(args, "plan", None):
+            agent_registry = AgentRegistry()
+            agent_registry.discover()
+            planner = TaskPlanner(agent_registry)
+            queue = TaskQueue(system.settings.database)
+            tasks = planner.plan(request=args.plan, requested_by="cli", workflow="")
+            if not tasks:
+                print("No plan generated.")
+                return
+            queue.enqueue_many(tasks)
+            print("Plan generated and saved as pending tasks:")
+            for task in tasks:
+                print(f"- {task.title}: {task.description} (task_id={task.task_id})")
+            print("Approval required before execution. Run --execute to approve and run pending tasks.")
+            return
+
+        if getattr(args, "execute", False):
+            registry = AgentRegistry()
+            registry.discover()
+            queue = TaskQueue(system.settings.database)
+            context_engine = ContextEngine(system.settings)
+            agent_history = AgentHistoryStore(system.settings.database)
+            task_history = TaskHistoryStore(system.settings.database)
+            agent_executor = AgentExecutor(registry, context_engine, agent_history)
+            engine = TaskExecutionEngine(queue, agent_executor, task_history)
+            results = engine.execute(approve_pending=True)
+            if not results:
+                print("No executable tasks found.")
+                return
+            for result in results:
+                print(
+                    f"{result.task_id} | {result.status} | agent={result.agent_name} "
+                    f"| confidence={result.confidence:.2f} | duration={result.duration_seconds:.2f}s"
+                )
+                print(result.summary)
             return
 
         print(system.summary())
