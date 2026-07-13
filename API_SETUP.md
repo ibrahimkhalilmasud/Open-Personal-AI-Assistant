@@ -27,6 +27,12 @@ Router provider chain:
 - `MAX_CONTEXT_TOKENS`
 - `QUERY_SYNONYMS_FILE`
 
+## API security settings
+
+- `OPA_API_KEY_HASH_PEPPER` (used for API key hash derivation)
+- `CORS_ALLOWED_ORIGINS` (comma-separated, defaults to localhost origins)
+- `CORS_ALLOW_CREDENTIALS` (defaults to `false`)
+
 ## Example `.env`
 
 ```env
@@ -39,6 +45,9 @@ MODEL_TIMEOUT_SECONDS=45
 MAX_CONTEXT_CHUNKS=12
 MAX_CONTEXT_TOKENS=12000
 QUERY_SYNONYMS_FILE=
+OPA_API_KEY_HASH_PEPPER=open-personal-ai-assistant-api-key-v1
+CORS_ALLOWED_ORIGINS=http://localhost,http://127.0.0.1
+CORS_ALLOW_CREDENTIALS=false
 ```
 
 ## Streaming behavior

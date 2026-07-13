@@ -49,6 +49,8 @@ REQUIRED_TABLES = (
     "permissions",
     "tool_metrics",
 )
+SCHEMA_MIGRATIONS_TABLE = "schema_migrations"
+CURRENT_SCHEMA_VERSION = 1
 
 
 def _files_schema_sql() -> str:
@@ -86,8 +88,40 @@ def _ensure_files_table_schema(conn: sqlite3.Connection) -> None:
         conn.execute("ALTER TABLE files ADD COLUMN index_signature TEXT NOT NULL DEFAULT ''")
 
 
+def _ensure_schema_migrations_table(conn: sqlite3.Connection) -> None:
+    conn.execute(
+        f"""
+        CREATE TABLE IF NOT EXISTS {SCHEMA_MIGRATIONS_TABLE} (
+            version INTEGER PRIMARY KEY,
+            name TEXT NOT NULL,
+            applied_at TEXT NOT NULL
+        )
+        """
+    )
+
+
+def _applied_migration_versions(conn: sqlite3.Connection) -> set[int]:
+    rows = conn.execute(f"SELECT version FROM {SCHEMA_MIGRATIONS_TABLE}").fetchall()
+    return {int(row[0]) for row in rows}
+
+
+def _record_migration(conn: sqlite3.Connection, version: int, name: str) -> None:
+    conn.execute(
+        f"INSERT OR IGNORE INTO {SCHEMA_MIGRATIONS_TABLE} (version, name, applied_at) VALUES (?, ?, ?)",
+        (version, name, datetime.now(UTC).isoformat()),
+    )
+
+
+def _apply_schema_migrations(conn: sqlite3.Connection) -> None:
+    _ensure_schema_migrations_table(conn)
+    applied = _applied_migration_versions(conn)
+    if CURRENT_SCHEMA_VERSION >= 1 and 1 not in applied:
+        _record_migration(conn, 1, "baseline_v1")
+
+
 def initialize_database(path: str) -> None:
     with sqlite3.connect(path) as conn:
+        _ensure_schema_migrations_table(conn)
         _ensure_files_table_schema(conn)
         for table in REQUIRED_TABLES:
             if table == "files":
@@ -518,6 +552,7 @@ def initialize_database(path: str) -> None:
             )
             """
         )
+        _apply_schema_migrations(conn)
         conn.commit()
 
 

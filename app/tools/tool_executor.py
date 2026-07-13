@@ -6,6 +6,7 @@ import uuid
 from datetime import UTC, datetime
 from typing import Any
 
+from app.database.sqlite_db import initialize_database
 from app.tools.tool_context import ToolContext
 from app.tools.tool_permissions import ToolPermissionManager
 from app.tools.tool_registry import ToolRegistry
@@ -20,40 +21,7 @@ class ToolExecutor:
         self._initialize()
 
     def _initialize(self) -> None:
-        with sqlite3.connect(self.database_path) as conn:
-            conn.execute(
-                """
-                CREATE TABLE IF NOT EXISTS tool_history (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    execution_id TEXT NOT NULL UNIQUE,
-                    tool_id TEXT NOT NULL,
-                    agent_name TEXT NOT NULL,
-                    workflow_name TEXT NOT NULL,
-                    start_time TEXT NOT NULL,
-                    finish_time TEXT NOT NULL,
-                    duration REAL NOT NULL,
-                    status TEXT NOT NULL,
-                    tool_inputs TEXT NOT NULL,
-                    tool_outputs TEXT NOT NULL,
-                    confidence REAL NOT NULL,
-                    citations TEXT NOT NULL
-                )
-                """
-            )
-            conn.execute(
-                """
-                CREATE TABLE IF NOT EXISTS tool_metrics (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    tool_id TEXT NOT NULL,
-                    executions INTEGER NOT NULL DEFAULT 0,
-                    failures INTEGER NOT NULL DEFAULT 0,
-                    avg_duration REAL NOT NULL DEFAULT 0,
-                    last_run_at TEXT NOT NULL,
-                    UNIQUE(tool_id)
-                )
-                """
-            )
-            conn.commit()
+        initialize_database(self.database_path)
 
     def execute(
         self,

@@ -88,8 +88,8 @@ def create_app() -> FastAPI:
 
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"],
-        allow_credentials=True,
+        allow_origins=list(system.settings.cors_allowed_origins),
+        allow_credentials=bool(system.settings.cors_allow_credentials),
         allow_methods=["*"],
         allow_headers=["*"],
     )
@@ -130,7 +130,11 @@ def create_app() -> FastAPI:
     @app.post("/api/v1/system/api-keys")
     def create_key(payload: dict[str, object]) -> dict[str, object]:
         name = str(payload.get("name", "sdk")).strip() or "sdk"
-        key = create_api_key(system.settings.database, name=name)
+        key = create_api_key(
+            system.settings.database,
+            name=name,
+            pepper=system.settings.api_key_hash_pepper,
+        )
         return {"name": name, "api_key": key}
 
     @app.exception_handler(HTTPException)

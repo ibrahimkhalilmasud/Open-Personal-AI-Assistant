@@ -7,6 +7,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from types import ModuleType
 
+from app.database.sqlite_db import initialize_database
 from app.plugins.manifest import PluginManifest
 from app.plugins.sandbox import PluginSandbox
 from app.plugins.sdk import PluginBase
@@ -39,37 +40,7 @@ class PluginLoader:
         self._initialize()
 
     def _initialize(self) -> None:
-        with sqlite3.connect(self.database_path) as conn:
-            conn.execute(
-                """
-                CREATE TABLE IF NOT EXISTS plugins (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    name TEXT NOT NULL UNIQUE,
-                    version TEXT NOT NULL,
-                    author TEXT NOT NULL,
-                    description TEXT NOT NULL,
-                    minimum_application_version TEXT NOT NULL,
-                    supported_platforms TEXT NOT NULL,
-                    supported_agents TEXT NOT NULL,
-                    required_permissions TEXT NOT NULL,
-                    status TEXT NOT NULL,
-                    updated_at TEXT NOT NULL
-                )
-                """
-            )
-            conn.execute(
-                """
-                CREATE TABLE IF NOT EXISTS plugin_history (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    plugin_name TEXT NOT NULL,
-                    action TEXT NOT NULL,
-                    status TEXT NOT NULL,
-                    message TEXT,
-                    created_at TEXT NOT NULL
-                )
-                """
-            )
-            conn.commit()
+        initialize_database(self.database_path)
 
     def discover(self) -> list[str]:
         candidates = []
