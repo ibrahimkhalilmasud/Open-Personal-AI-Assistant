@@ -1,22 +1,48 @@
 # API SETUP
 
-All API keys are optional and are loaded automatically from `.env`.
+All keys are optional; provider fallback is automatic.
 
-Priority used by router:
-1. local models
-2. Gemini
-3. Groq
-4. OpenAI
+## Provider selection order
 
-The system keeps local provider support available even when cloud keys are missing.
+1. User-selected model (`--model`)
+2. Default model (`DEFAULT_MODEL`)
+3. Provider fallback chain
 
-Required for indexing commands:
+Router provider chain:
+
+1. Ollama (`ollama`, local)
+2. Gemini (`GOOGLE_API_KEY`)
+3. Groq (`GROQ_API_KEY`)
+4. OpenAI (`OPENAI_API_KEY`)
+
+## Required for vault indexing
+
 - `VAULT_PATH`
 
-Operational settings:
-- `DATABASE`
-- `VECTOR_DB`
-- `EMBEDDING_MODEL`
-- `CHUNK_SIZE`
-- `CHUNK_OVERLAP`
-- `EMBED_BATCH_SIZE`
+## RAG and model settings
+
+- `DEFAULT_MODEL`
+- `MODEL_TIMEOUT_SECONDS`
+- `MAX_CONTEXT_CHUNKS`
+- `MAX_CONTEXT_TOKENS`
+- `QUERY_SYNONYMS_FILE`
+
+## Example `.env`
+
+```env
+OPENAI_API_KEY=
+GOOGLE_API_KEY=
+GROQ_API_KEY=
+OLLAMA_URL=http://localhost:11434
+DEFAULT_MODEL=qwen3
+MODEL_TIMEOUT_SECONDS=45
+MAX_CONTEXT_CHUNKS=12
+MAX_CONTEXT_TOKENS=12000
+QUERY_SYNONYMS_FILE=
+```
+
+## Streaming behavior
+
+- Ollama/OpenAI-compatible providers: streaming supported.
+- Gemini path: non-streaming mode used.
+- If a provider fails, router falls back to next provider.
