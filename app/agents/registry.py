@@ -3,6 +3,7 @@ from __future__ import annotations
 import importlib
 import inspect
 import pkgutil
+from dataclasses import asdict
 from typing import Any
 
 from app.agents.base_agent import BaseAgent
@@ -32,7 +33,7 @@ class AgentRegistry:
         self._agents.pop(name, None)
 
     def list_agents(self) -> list[dict[str, Any]]:
-        return [agent.descriptor().__dict__ for agent in sorted(self._agents.values(), key=lambda item: item.name)]
+        return [asdict(agent.descriptor()) for agent in sorted(self._agents.values(), key=lambda item: item.name)]
 
     def get_agent(self, name: str) -> BaseAgent | None:
         return self._agents.get(name)
