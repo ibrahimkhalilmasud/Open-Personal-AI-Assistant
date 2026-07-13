@@ -19,6 +19,10 @@ class MainCLITests(unittest.TestCase):
             args = main_module.parse_args()
         self.assertTrue(args.auto_index)
 
+        with patch("sys.argv", ["main.py", "--memory"]):
+            args = main_module.parse_args()
+        self.assertTrue(args.memory)
+
     @patch("main.create_system")
     @patch("main.VaultEngine")
     def test_main_index_path(self, vault_engine_cls: MagicMock, create_system: MagicMock) -> None:
@@ -33,6 +37,11 @@ class MainCLITests(unittest.TestCase):
             after=None,
             before=None,
             top=10,
+            memory=False,
+            memory_search=None,
+            timeline=None,
+            project=None,
+            person=None,
         )
         with patch("main.parse_args", return_value=args), patch("builtins.print"):
             fake_engine = MagicMock()
