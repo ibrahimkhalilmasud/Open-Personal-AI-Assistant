@@ -1,57 +1,38 @@
 # DEVELOPER GUIDE
 
-## Project layout
+## Architecture (Phase 8)
 
-Phase 4 RAG modules:
+`Client -> REST API (/api/v1) -> Service Layer -> Core modules (memory/graph/rag/vault/tasks/workflows)`
 
-- `app/query/` → query analysis and expansion
-- `app/rag/` → orchestrator and hybrid retrieval
-- `app/context/` → context filtering, token budgeting, dedupe
-- `app/prompts/` → reusable prompt construction
-- `app/reasoning/` → answer generation + confidence scoring
-- `app/citations/` → citation extraction/formatting
+## New module groups
 
-## Retrieval and reasoning flow
+- `app/services/`: stable internal service interfaces
+- `app/api/`: FastAPI server, routes, middleware, auth
+- `app/sdk/`: internal Python SDK wrapper for REST API
 
-`Question -> QueryAnalyzer -> QueryExpander -> HybridRetriever -> ContextBuilder -> PromptBuilder -> AIRouter -> AnswerGenerator -> CitationFormatter -> JSON response`
+## API versioning
 
-## Grounding guarantees
+- Current version prefix: `/api/v1/`
+- Route grouping and server wiring are version-isolated to support `/api/v2/` in future.
 
-- Prompts explicitly forbid hallucinations.
-- Insufficient context returns deterministic fallback message.
-- Citations are attached to every grounded answer.
-- Generated answers are not written into vault storage.
+## Auth and middleware
 
-## Performance metrics
+- API key auth via `X-API-Key`
+- Request ID and latency headers
+- Request logging
+- Metrics + audit persistence (`api_requests`, `api_audit_log`)
+- Structured exception responses
+- CORS and GZip enabled
 
-`RAGEngine.ask()` returns timings:
+## New operational tables
 
-- `retrieval_seconds`
-- `context_seconds`
-- `model_seconds`
-- `total_seconds`
-
-## Memory architecture
-- `app/memory/short_term.py`: in-session turn cache
-- `app/memory/conversations.py`: persistent conversation memory
-- `app/memory/preferences.py`: persistent preference memory
-- `app/memory/projects.py`: project detection and project memory
-- `app/memory/long_term.py`: incremental long-term memory pipeline
-
-## Knowledge graph
-- `app/knowledge_graph/entities.py`: canonical entities and aliases
-- `app/knowledge_graph/relationships.py`: typed graph edges with confidence
-- `app/knowledge_graph/timeline.py`: persistent timeline events
-- `app/knowledge_graph/query.py`: graph query helpers for person/project/related queries
-
-## Incremental updates
-- The memory pipeline processes only files with changed index/hash signatures using `memory_processing_state`.
-- Summary generation is cached in `summary_cache` and only refreshes when source signatures change.
-
-## Entity and relationship extraction
-- Rule-based extraction is implemented in `app/entity_extraction/`.
-- Entity deduplication and alias merging is implemented in `app/entity_resolution/`.
-- Relationship typing currently maps document evidence into `works_for`, `belongs_to`, `located_in`, `travels_to`, `references`, and fallback `related_to`.
+- `api_keys`
+- `api_requests`
+- `service_metrics`
+- `service_health`
+- `api_audit_log`
+- `installed_tools`
+- `installed_plugins`
 
 ## Tool architecture (Phase 7)
 

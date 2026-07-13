@@ -1,5 +1,14 @@
 # AI-Personal-OS (Open-Personal-AI-Assistant)
 
+Local-first personal knowledge platform with indexing, retrieval, persistent memory, a knowledge graph, and a reusable service/API layer.
+
+## Phase 8 scope (Service Layer + REST API + SDK)
+
+- Service Layer entry points under `app/services/`
+- FastAPI server with versioned routes under `app/api/`
+- Internal Python SDK under `app/sdk/`
+- API key authentication, middleware, health/status/metrics endpoints
+- Migration-safe API/service tables (`api_keys`, `api_requests`, `service_metrics`, `service_health`, `api_audit_log`)
 Local-first personal knowledge platform with persistent indexing, retrieval, hybrid search, and a persistent memory + knowledge graph engine.
 
 ## Phase 7 scope (tool execution framework + plugin SDK)
@@ -50,21 +59,7 @@ Local-first personal knowledge platform with persistent indexing, retrieval, hyb
 pip install -r requirements.txt
 ```
 
-## Core environment variables
-
-- `VAULT_PATH` (required for scan/index/watch)
-- `DATABASE` (default `data/database.db`)
-- `VECTOR_DB` (default `data/vector`)
-- `EMBEDDING_MODEL` (default `all-MiniLM-L6-v2`)
-- `CHUNK_SIZE` (default `500`)
-- `CHUNK_OVERLAP` (default `100`)
-- `EMBED_BATCH_SIZE` (default `64`)
-- `MAX_CONTEXT_CHUNKS` (default `12`)
-- `MAX_CONTEXT_TOKENS` (default `12000`)
-- `QUERY_SYNONYMS_FILE` (optional JSON dictionary)
-- `MODEL_TIMEOUT_SECONDS` (default `45`)
-
-## Commands
+## Core commands
 
 ```bash
 python main.py --scan
@@ -72,59 +67,48 @@ python main.py --index
 python main.py --watch
 python main.py --auto-index
 python main.py --search "insurance"
-python main.py --search "invoice" --folder Insurance --type pdf --after 2025 --top 10
+python main.py --ask "Summarize my PhD research"
 python main.py --agents
-python main.py --agent-list
 python main.py --workflow-list
 python main.py --plan "Prepare my Bali trip"
 python main.py --execute
-python main.py --tools
-python main.py --tool-list
-python main.py --tool-info FileSearchTool
-python main.py --tool-test FileSearchTool
-python main.py --plugin-list
-python main.py --plugin-load sample_plugin
-python main.py --plugin-unload sample_plugin
+python main.py --api
+python main.py --health
+python main.py --status
+python main.py --metrics
+python main.py --sdk-test
 ```
 
-## Tool chaining
+## API base routes
 
-Sequential chain execution is supported through `ToolExecutor.execute_chain()`:
+- `/api/v1/search`
+- `/api/v1/memory`
+- `/api/v1/rag`
+- `/api/v1/vault`
+- `/api/v1/tasks`
+- `/api/v1/workflows`
+- `/api/v1/tools`
+- `/api/v1/plugins`
+- `/api/v1/system`
 
-`Question -> MemorySearchTool -> KnowledgeGraphTool -> VectorSearchTool -> DocumentReaderTool -> SummarizationTool -> Answer`
+Public operational endpoints:
 
-Each step receives structured outputs from prior steps and all executions are persisted in `tool_history`.
+- `/health`
+- `/status`
+- `/metrics`
+- `/docs`
+- `/openapi.json`
 
-## RAG behavior
+## SDK example
 
-- Uses retrieved vault chunks only (grounded answers).
-- Returns fallback when context is insufficient.
-- Always includes citations in CLI output.
-- Internally uses structured JSON:
+```python
+from sdk import Client
 
-```json
-{
-  "answer": "...",
-  "confidence": 0.92,
-  "sources": [
-    {
-      "filename": "...",
-      "path": "...",
-      "page": 4,
-      "score": 0.94
-    }
-  ]
-}
+client = Client(base_url="http://127.0.0.1:8000", api_key="YOUR_KEY")
+print(client.search("insurance"))
+print(client.memory("passport"))
+print(client.ask("Summarize my PhD"))
 ```
-
-## Benchmarks (local unit-test fixture run)
-
-| Metric | Value |
-|---|---:|
-| Retrieval time | ~0.01s |
-| Context assembly time | ~0.001s |
-| Model response time (mocked tests) | ~0.01s |
-| End-to-end (mocked tests) | ~0.03s |
 
 ## Tests
 
