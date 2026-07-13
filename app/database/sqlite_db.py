@@ -42,6 +42,12 @@ REQUIRED_TABLES = (
     "knowledge_memory",
     "summary_cache",
     "memory_processing_state",
+    "tools",
+    "tool_history",
+    "plugins",
+    "plugin_history",
+    "permissions",
+    "tool_metrics",
 )
 
 
@@ -269,6 +275,111 @@ def initialize_database(path: str) -> None:
                         file_path TEXT PRIMARY KEY,
                         signature TEXT NOT NULL,
                         updated_at TEXT NOT NULL
+                    )
+                    """
+                )
+                continue
+            if table == "tools":
+                conn.execute(
+                    """
+                    CREATE TABLE IF NOT EXISTS tools (
+                        tool_id TEXT PRIMARY KEY,
+                        name TEXT NOT NULL,
+                        version TEXT NOT NULL,
+                        description TEXT NOT NULL,
+                        category TEXT NOT NULL,
+                        author TEXT NOT NULL,
+                        permissions_json TEXT NOT NULL,
+                        input_schema_json TEXT NOT NULL,
+                        output_schema_json TEXT NOT NULL,
+                        is_builtin INTEGER NOT NULL DEFAULT 1,
+                        updated_at TEXT NOT NULL
+                    )
+                    """
+                )
+                continue
+            if table == "tool_history":
+                conn.execute(
+                    """
+                    CREATE TABLE IF NOT EXISTS tool_history (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        execution_id TEXT NOT NULL UNIQUE,
+                        tool_id TEXT NOT NULL,
+                        agent_name TEXT NOT NULL,
+                        workflow_name TEXT NOT NULL,
+                        start_time TEXT NOT NULL,
+                        finish_time TEXT NOT NULL,
+                        duration REAL NOT NULL,
+                        status TEXT NOT NULL,
+                        tool_inputs TEXT NOT NULL,
+                        tool_outputs TEXT NOT NULL,
+                        confidence REAL NOT NULL,
+                        citations TEXT NOT NULL
+                    )
+                    """
+                )
+                conn.execute("CREATE INDEX IF NOT EXISTS idx_tool_history_tool ON tool_history(tool_id)")
+                conn.execute("CREATE INDEX IF NOT EXISTS idx_tool_history_agent ON tool_history(agent_name)")
+                continue
+            if table == "plugins":
+                conn.execute(
+                    """
+                    CREATE TABLE IF NOT EXISTS plugins (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        name TEXT NOT NULL UNIQUE,
+                        version TEXT NOT NULL,
+                        author TEXT NOT NULL,
+                        description TEXT NOT NULL,
+                        minimum_application_version TEXT NOT NULL,
+                        supported_platforms TEXT NOT NULL,
+                        supported_agents TEXT NOT NULL,
+                        required_permissions TEXT NOT NULL,
+                        status TEXT NOT NULL,
+                        updated_at TEXT NOT NULL
+                    )
+                    """
+                )
+                continue
+            if table == "plugin_history":
+                conn.execute(
+                    """
+                    CREATE TABLE IF NOT EXISTS plugin_history (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        plugin_name TEXT NOT NULL,
+                        action TEXT NOT NULL,
+                        status TEXT NOT NULL,
+                        message TEXT,
+                        created_at TEXT NOT NULL
+                    )
+                    """
+                )
+                conn.execute("CREATE INDEX IF NOT EXISTS idx_plugin_history_name ON plugin_history(plugin_name)")
+                continue
+            if table == "permissions":
+                conn.execute(
+                    """
+                    CREATE TABLE IF NOT EXISTS permissions (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        principal TEXT NOT NULL,
+                        permission TEXT NOT NULL,
+                        granted INTEGER NOT NULL DEFAULT 1,
+                        source TEXT NOT NULL DEFAULT 'system',
+                        updated_at TEXT NOT NULL,
+                        UNIQUE(principal, permission)
+                    )
+                    """
+                )
+                continue
+            if table == "tool_metrics":
+                conn.execute(
+                    """
+                    CREATE TABLE IF NOT EXISTS tool_metrics (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        tool_id TEXT NOT NULL UNIQUE,
+                        executions INTEGER NOT NULL DEFAULT 0,
+                        failures INTEGER NOT NULL DEFAULT 0,
+                        avg_duration REAL NOT NULL DEFAULT 0,
+                        last_run_at TEXT NOT NULL
                     )
                     """
                 )
