@@ -4,6 +4,7 @@ import argparse
 
 from app.core.system import create_system
 from app.logging import get_application_logger, get_error_logger
+from app.rag import RAGEngine
 from app.search import SearchEngine
 from app.vault.engine import VaultEngine
 
@@ -20,6 +21,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--after", type=str, help="Filter search by modified_date >= value")
     parser.add_argument("--before", type=str, help="Filter search by modified_date <= value")
     parser.add_argument("--top", type=int, default=10, help="Maximum number of search results")
+    parser.add_argument("--ask", type=str, help="Ask grounded question using Personal Vault context")
+    parser.add_argument("--model", type=str, help="Override AI model for --ask")
+    parser.add_argument("--stream", action="store_true", help="Enable streaming response when supported")
     return parser.parse_args()
 
 
@@ -97,6 +101,46 @@ def main() -> None:
                 print("Snippet:")
                 print(f"\"{result.snippet}\"")
                 print()
+            return
+
+        if args.ask is not None:
+            rag_engine = RAGEngine(system.settings, system.router)
+
+            def _on_token(token: str) -> None:
+                print(token, end="", flush=True)
+
+            answer = rag_engine.ask(
+                args.ask,
+                model=args.model,
+                stream=args.stream,
+                on_token=_on_token if args.stream else None,
+            )
+            if args.stream:
+                print()
+
+            print("Answer:")
+            print(str(answer["answer"]))
+            print()
+            print(f"Confidence: {answer['confidence']} ({answer['confidence_label']})")
+            print(f"Provider: {answer['provider']}")
+            print(f"Model: {answer['model']}")
+            citations = answer.get("citations", [])
+            if citations:
+                print("Citations:")
+                for item in citations:
+                    print(f"- {item}")
+            else:
+                print("Citations: none")
+
+            timings = answer.get("timings", {})
+            if isinstance(timings, dict):
+                print(
+                    "Performance | "
+                    f"retrieval={timings.get('retrieval_seconds', 0)}s "
+                    f"context={timings.get('context_seconds', 0)}s "
+                    f"model={timings.get('model_seconds', 0)}s "
+                    f"total={timings.get('total_seconds', 0)}s"
+                )
             return
 
         print(system.summary())

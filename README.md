@@ -1,29 +1,31 @@
 # AI-Personal-OS (Open-Personal-AI-Assistant)
 
-Local-first personal knowledge platform with persistent indexing, retrieval, and hybrid search.
+Local-first personal knowledge platform with indexing, hybrid retrieval, and grounded question answering.
 
-## Phase 3.5 stabilization scope
+## Phase 4 scope (Knowledge & Reasoning Engine)
 
-- persistent vector storage (ChromaDB + durable local fallback)
-- incremental indexing using hash + modified date + model/chunk signature
-- batch embedding support (`EMBED_BATCH_SIZE`)
-- hybrid semantic + keyword + metadata search
-- retrieval schema with normalized score and file metadata
-- rotating logs:
-  - `logs/application.log`
-  - `logs/error.log`
-  - `logs/search.log`
-  - `logs/scan.log`
-  - `logs/watcher.log`
+Implemented RAG pipeline stages:
+
+1. Query Analyzer (`app/query/analyzer.py`)
+2. Query Expansion (`app/query/expansion.py`)
+3. Hybrid Search + Retrieval (`app/rag/retriever.py`)
+4. Context Builder (`app/context/builder.py`)
+5. Prompt Builder (`app/prompts/builder.py`)
+6. AI Router (`app/router/ai_router.py`)
+7. Answer Generator (`app/reasoning/answer_generator.py`)
+8. Citation Formatter (`app/citations/formatter.py`)
+9. Confidence Scoring (`app/reasoning/confidence.py`)
+10. End-to-end engine (`app/rag/engine.py`)
 
 ## Setup
 
 1. Copy `.env.example` to `.env`.
 2. Set `VAULT_PATH`.
 3. Install dependencies:
-   ```bash
-   pip install -r requirements.txt
-   ```
+
+```bash
+pip install -r requirements.txt
+```
 
 ## Core environment variables
 
@@ -34,6 +36,10 @@ Local-first personal knowledge platform with persistent indexing, retrieval, and
 - `CHUNK_SIZE` (default `500`)
 - `CHUNK_OVERLAP` (default `100`)
 - `EMBED_BATCH_SIZE` (default `64`)
+- `MAX_CONTEXT_CHUNKS` (default `12`)
+- `MAX_CONTEXT_TOKENS` (default `12000`)
+- `QUERY_SYNONYMS_FILE` (optional JSON dictionary)
+- `MODEL_TIMEOUT_SECONDS` (default `45`)
 
 ## Commands
 
@@ -43,8 +49,40 @@ python main.py --index
 python main.py --watch
 python main.py --auto-index
 python main.py --search "insurance"
-python main.py --search "invoice" --folder Insurance --type pdf --after 2025 --top 10
+python main.py --ask "Summarize my medical history"
+python main.py --ask "Which documents mention Brussels?" --model qwen3 --stream
 ```
+
+## RAG behavior
+
+- Uses retrieved vault chunks only (grounded answers).
+- Returns fallback when context is insufficient.
+- Always includes citations in CLI output.
+- Internally uses structured JSON:
+
+```json
+{
+  "answer": "...",
+  "confidence": 0.92,
+  "sources": [
+    {
+      "filename": "...",
+      "path": "...",
+      "page": 4,
+      "score": 0.94
+    }
+  ]
+}
+```
+
+## Benchmarks (local unit-test fixture run)
+
+| Metric | Value |
+|---|---:|
+| Retrieval time | ~0.01s |
+| Context assembly time | ~0.001s |
+| Model response time (mocked tests) | ~0.01s |
+| End-to-end (mocked tests) | ~0.03s |
 
 ## Tests
 
