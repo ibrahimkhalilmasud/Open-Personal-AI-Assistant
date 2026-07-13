@@ -1,28 +1,57 @@
 # TROUBLESHOOTING
 
-## `VAULT_PATH` is empty
-Set `VAULT_PATH` in `.env` to your Personal Data Vault path.
+## Purpose
+Resolve common install/runtime/API/search/memory/workflow issues.
 
-## Database not created
-Ensure `DATABASE` points to a writable location.
+## Audience
+Users and admins.
 
-## `.env` values not applied
-Install `python-dotenv` and keep `.env` in the project root (or set `OPA_ENV_FILE=/path/to/.env`).
+## Prerequisites
+Access to terminal and project logs.
 
-## `--watch` / `--auto-index` fails
-Install `watchdog` from requirements.
+## Step-by-step (Common issues)
+### Installation failures
+- Recreate venv and reinstall dependencies.
 
-## Search returns no semantic results
-Verify `VECTOR_DB` is writable and run:
+### Missing dependencies
+- `ModuleNotFoundError`: run `pip install -r requirements.txt` in active venv.
+
+### Database problems
+- Ensure `DATABASE` path is writable.
+- Remove corrupted DB backup/restore if needed.
+
+### ChromaDB issues
+- Chroma optional; local vector fallback is used.
+- Rebuild index with `python main.py --index`.
+
+### Plugin problems
+- Validate plugin folder has `manifest.json` + `plugin.py` + `create_plugin()`.
+
+### API problems
+- 401/403: API key missing/invalid.
+- Verify server with `/health`.
+
+### Memory/search issues
+- Run `--scan`, then `--index`, then `--memory`.
+
+### Agent/workflow issues
+- Verify `python main.py --agent-list` and `--workflow-list`.
+
+### Python errors
+- Confirm Python 3.12+ and correct virtualenv activation.
+
+## Examples
 ```bash
-python main.py --index
+python main.py --health
+python main.py --status
+python main.py --metrics
+python -m unittest discover -s tests -q
 ```
 
-## Corrupted or encrypted documents
-The system skips unreadable files and logs errors to `logs/error.log`.
+## Troubleshooting
+If unresolved, inspect `logs/error.log` and open an issue with reproduction steps.
 
-## ChromaDB unavailable
-Install `chromadb`. A durable local vector backend is used when ChromaDB is unavailable.
-
-## No cloud provider used
-Add API keys in `.env`; local provider remains first by design.
+## Related documents
+- [INSTALL.md](INSTALL.md)
+- [USER_GUIDE.md](USER_GUIDE.md)
+- [SECURITY.md](SECURITY.md)

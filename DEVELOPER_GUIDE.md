@@ -1,73 +1,67 @@
 # DEVELOPER GUIDE
 
-## Architecture (Phase 8)
+## Purpose
+Explain project structure and extension points.
 
-`Client -> REST API (/api/v1) -> Service Layer -> Core modules (memory/graph/rag/vault/tasks/workflows)`
+## Audience
+Contributors and maintainers.
 
-## New module groups
+## Prerequisites
+Python dev environment and test dependencies installed.
 
-- `app/services/`: stable internal service interfaces
-- `app/api/`: FastAPI server, routes, middleware, auth
-- `app/sdk/`: internal Python SDK wrapper for REST API
+## Step-by-step
+### Project structure
+- `main.py`: CLI entrypoint
+- `app/api`: FastAPI server, auth, middleware, routes
+- `app/services`: service-layer orchestration
+- `app/vault`, `app/search`, `app/rag`, `app/memory`, `app/knowledge_graph`
+- `app/tools`, `app/plugins`, `app/agents`, `app/workflows`
 
-## API versioning
+### Coding standards
+- Keep changes local and tested.
+- Follow existing dataclass/type-hint patterns.
+- Avoid undocumented CLI/API behavior.
 
-- Current version prefix: `/api/v1/`
-- Route grouping and server wiring are version-isolated to support `/api/v2/` in future.
+### Add an agent
+1. Create class extending `BaseAgent` in `app/agents/`.
+2. Implement lifecycle and plan/execute methods.
+3. Ensure `AgentRegistry.discover()` auto-discovers it.
 
-## Auth and middleware
+### Add a tool
+1. Create class extending `BaseTool` in `app/tools/`.
+2. Define metadata + schemas + execute logic.
+3. It becomes discoverable through `ToolRegistry.discover()`.
 
-- API key auth via `X-API-Key`
-- Request ID and latency headers
-- Request logging
-- Metrics + audit persistence (`api_requests`, `api_audit_log`)
-- Structured exception responses
-- CORS and GZip enabled
+### Add a plugin
+1. Add folder under `plugins/<name>`.
+2. Provide `manifest.json` and `plugin.py` with `create_plugin()`.
+3. Use `PluginBase` and register tools through `ToolRegistry`.
 
-## New operational tables
+### Add a workflow
+Edit `app/workflows/templates.py`.
 
-- `api_keys`
-- `api_requests`
-- `service_metrics`
-- `service_health`
-- `api_audit_log`
-- `installed_tools`
-- `installed_plugins`
+### Add AI provider
+Extend `AIRouter` provider chain in `app/router/ai_router.py`.
 
-## Tool architecture (Phase 7)
+### Migrations
+Schema bootstrap is in `app/database/sqlite_db.py`; schema version tracked in `schema_migrations`.
 
-- Base contract: `app/tools/base_tool.py`
-  - required metadata: `tool_id`, `name`, `version`, `description`, `category`, `author`, `permissions`, `input_schema`, `output_schema`
-  - lifecycle methods: `initialize()`, `validate()`, `execute()`, `cleanup()`
-- Discovery and registration: `app/tools/tool_discovery.py`, `app/tools/tool_registry.py`
-- Execution engine: `app/tools/tool_executor.py`
-  - execution metadata: `execution_id`, `agent_name`, `workflow_name`, `start_time`, `finish_time`, `duration`, `status`, `tool_inputs`, `tool_outputs`, `confidence`, `citations`
-  - persistent history: `tool_history`, `tool_metrics`
-- Permission and validation:
-  - `app/tools/tool_permissions.py`
-  - `app/tools/tool_validation.py`
-- Chaining support: `ToolExecutor.execute_chain()`
-
-## Plugin SDK
-
-- `app/plugins/manifest.py` defines plugin metadata contract.
-- `app/plugins/sdk.py` defines `PluginBase` lifecycle contract.
-- `app/plugins/validator.py` enforces required plugin files and manifest fields.
-- `app/plugins/loader.py` supports `load_plugin`, `unload_plugin`, `reload_plugin`, `list_plugins`, and `validate_plugin`.
-- `app/plugins/sandbox.py` enforces untrusted plugin permission restrictions.
-- `app/plugins/manager.py` orchestrates discovery and lifecycle operations.
-
-## SQLite schema additions (phase 7)
-
-- `tools`
-- `tool_history`
-- `plugins`
-- `plugin_history`
-- `permissions`
-- `tool_metrics`
-
-## Run tests
-
+### Tests
 ```bash
 python -m unittest discover -s tests -q
 ```
+
+### Debugging
+- Check logs in `logs/`
+- Use `python main.py --status` and API `/metrics`
+
+## Examples
+See `plugins/sample_plugin` and `app/tools/builtin_tools.py`.
+
+## Troubleshooting
+If discovery fails, verify module location and inheritance from base classes.
+
+## Related documents
+- [ARCHITECTURE.md](ARCHITECTURE.md)
+- [API_REFERENCE.md](API_REFERENCE.md)
+- [CONTRIBUTING.md](CONTRIBUTING.md)
