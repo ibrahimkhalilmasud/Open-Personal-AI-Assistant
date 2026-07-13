@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import os
 import secrets
 import sqlite3
 from datetime import UTC, datetime
@@ -9,7 +10,8 @@ from fastapi import Header, HTTPException, Request, status
 
 
 def hash_api_key(raw_key: str) -> str:
-    return hashlib.sha256(raw_key.encode("utf-8")).hexdigest()
+    pepper = os.getenv("OPA_API_KEY_HASH_PEPPER", "open-personal-ai-assistant-api-key-v1").encode("utf-8")
+    return hashlib.pbkdf2_hmac("sha256", raw_key.encode("utf-8"), pepper, 600_000, dklen=32).hex()
 
 
 def create_api_key(database_path: str, name: str) -> str:
