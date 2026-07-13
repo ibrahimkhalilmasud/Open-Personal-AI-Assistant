@@ -1,31 +1,24 @@
 # USER GUIDE
 
-## 1) Configure
+## Purpose
+Daily usage reference for CLI and API mode.
 
-```env
-VAULT_PATH=/home/user/PersonalVault
-DATABASE=data/database.db
-VECTOR_DB=data/vector
-DEFAULT_MODEL=qwen3
-```
+## Audience
+End users.
 
-## 2) Vault operations
+## Prerequisites
+Configured `.env` with `VAULT_PATH`.
 
+## Step-by-step
+### Daily workflow
 ```bash
 python main.py --scan
 python main.py --index
-python main.py --watch
+python main.py --search "insurance"
+python main.py --ask "Summarize my insurance"
 ```
 
-## 3) Search and ask
-
-```bash
-python main.py --search "insurance renewal"
-python main.py --ask "Which documents mention Brussels?"
-```
-
-## 4) Memory and graph
-
+### Memory and graph
 ```bash
 python main.py --memory
 python main.py --memory-search "passport"
@@ -34,24 +27,30 @@ python main.py --project Luxoria
 python main.py --person Mike
 ```
 
-## 5) Service/API mode
+### Agents and workflows
+```bash
+python main.py --agent-list
+python main.py --workflow-list
+python main.py --plan "review insurance policies"
+python main.py --execute
+```
 
+### API mode
 ```bash
 python main.py --api
-python main.py --health
-python main.py --status
-python main.py --metrics
 ```
+Open `http://127.0.0.1:8000/docs`.
 
-Then open:
-
-- Swagger UI: `http://127.0.0.1:8000/docs`
-- OpenAPI spec: `http://127.0.0.1:8000/openapi.json`
-
-## 6) SDK quick test
-
+## Examples
 ```bash
-python main.py --sdk-test
+python main.py --search "invoice" --folder finance --type pdf --top 5
+python main.py --ask "What is due this month?" --model qwen3
 ```
 
-Use API key auth for protected `/api/v1/*` endpoints.
+## Troubleshooting
+Use `python main.py --health` and `--status` when operations fail.
+
+## Related documents
+- [QUICK_START.md](QUICK_START.md)
+- [ADMIN_GUIDE.md](ADMIN_GUIDE.md)
+- [TROUBLESHOOTING.md](TROUBLESHOOTING.md)

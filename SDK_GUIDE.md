@@ -1,41 +1,37 @@
 # SDK GUIDE
 
-## Install dependencies
+## Purpose
+Use the internal Python SDK (`sdk.Client`) for API access.
 
-```bash
-pip install -r requirements.txt
-```
+## Audience
+Python developers.
 
-## Import
+## Prerequisites
+API server running and API key created.
 
+## Step-by-step
 ```python
 from sdk import Client
-```
 
-## Initialize
-
-```python
 client = Client(base_url="http://127.0.0.1:8000", api_key="YOUR_KEY")
+print(client.health())
+print(client.search("insurance", top_k=5).count)
+print(client.memory("passport"))
+print(client.ask("Summarize my insurance").answer)
 ```
 
-## Methods
+Methods:
+- `search(query, top_k=10)`
+- `memory(query)`
+- `ask(question, model=None)`
+- `health()` `status()` `metrics()`
 
-- `client.search(query, top_k=10)`
-- `client.memory(query)`
-- `client.ask(question, model=None)`
-- `client.health()`
-- `client.status()`
-- `client.metrics()`
+## Examples
+Use `python main.py --sdk-test` for built-in connectivity check.
 
-## Example
+## Troubleshooting
+`APIError` indicates non-2xx response; inspect status code and JSON payload.
 
-```python
-result = client.search("insurance")
-print(result.count)
-
-memory = client.memory("passport")
-print(memory)
-
-answer = client.ask("Summarize my PhD")
-print(answer.answer)
-```
+## Related documents
+- [API_REFERENCE.md](API_REFERENCE.md)
+- [INSTALL.md](INSTALL.md)
