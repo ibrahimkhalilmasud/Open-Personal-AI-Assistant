@@ -1,21 +1,31 @@
 # AI-Personal-OS (Open-Personal-AI-Assistant)
 
-Local-first personal knowledge platform with indexing, hybrid retrieval, and grounded question answering.
+Local-first personal knowledge platform with persistent indexing, retrieval, hybrid search, and a persistent memory + knowledge graph engine.
 
-## Phase 4 scope (Knowledge & Reasoning Engine)
+## Phase 5 scope (persistent memory + knowledge graph)
 
-Implemented RAG pipeline stages:
-
-1. Query Analyzer (`app/query/analyzer.py`)
-2. Query Expansion (`app/query/expansion.py`)
-3. Hybrid Search + Retrieval (`app/rag/retriever.py`)
-4. Context Builder (`app/context/builder.py`)
-5. Prompt Builder (`app/prompts/builder.py`)
-6. AI Router (`app/router/ai_router.py`)
-7. Answer Generator (`app/reasoning/answer_generator.py`)
-8. Citation Formatter (`app/citations/formatter.py`)
-9. Confidence Scoring (`app/reasoning/confidence.py`)
-10. End-to-end engine (`app/rag/engine.py`)
+- persistent vector storage (ChromaDB + durable local fallback)
+- incremental indexing using hash + modified date + model/chunk signature
+- batch embedding support (`EMBED_BATCH_SIZE`)
+- hybrid semantic + keyword + metadata search
+- retrieval schema with normalized score and file metadata
+- persistent memory layers:
+  - conversation memory
+  - preference memory
+  - project memory
+  - knowledge memory (document-supported facts only)
+- SQLite-backed knowledge graph:
+  - entities
+  - relationships
+  - timelines
+  - summary cache
+- rule-based entity extraction and entity resolution with incremental updates
+- rotating logs:
+  - `logs/application.log`
+  - `logs/error.log`
+  - `logs/search.log`
+  - `logs/scan.log`
+  - `logs/watcher.log`
 
 ## Setup
 
@@ -49,8 +59,12 @@ python main.py --index
 python main.py --watch
 python main.py --auto-index
 python main.py --search "insurance"
-python main.py --ask "Summarize my medical history"
-python main.py --ask "Which documents mention Brussels?" --model qwen3 --stream
+python main.py --search "invoice" --folder Insurance --type pdf --after 2025 --top 10
+python main.py --memory
+python main.py --memory-search "passport"
+python main.py --timeline 2025
+python main.py --project Luxoria
+python main.py --person Mike
 ```
 
 ## RAG behavior

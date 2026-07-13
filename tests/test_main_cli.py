@@ -19,11 +19,9 @@ class MainCLITests(unittest.TestCase):
             args = main_module.parse_args()
         self.assertTrue(args.auto_index)
 
-        with patch("sys.argv", ["main.py", "--ask", "Summarize my medical history", "--model", "qwen3", "--stream"]):
+        with patch("sys.argv", ["main.py", "--memory"]):
             args = main_module.parse_args()
-        self.assertEqual(args.ask, "Summarize my medical history")
-        self.assertEqual(args.model, "qwen3")
-        self.assertTrue(args.stream)
+        self.assertTrue(args.memory)
 
     @patch("main.create_system")
     @patch("main.VaultEngine")
@@ -39,9 +37,11 @@ class MainCLITests(unittest.TestCase):
             after=None,
             before=None,
             top=10,
-            ask=None,
-            model=None,
-            stream=False,
+            memory=False,
+            memory_search=None,
+            timeline=None,
+            project=None,
+            person=None,
         )
         with patch("main.parse_args", return_value=args), patch("builtins.print"):
             fake_engine = MagicMock()
