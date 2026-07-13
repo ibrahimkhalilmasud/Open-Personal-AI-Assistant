@@ -21,15 +21,13 @@ class AIRouterIntegrationTests(unittest.TestCase):
 
         success = MagicMock()
         success.raise_for_status.return_value = None
-        success.json.return_value = {
-            "choices": [{"message": {"content": "grounded answer"}}],
-        }
+        success.json.return_value = {"response": "grounded answer"}
 
         post.side_effect = [failed, success]
 
         output = router.generate(system_prompt="sys", user_prompt="user", selected_model="gemini-1.5-flash")
 
-        self.assertEqual(output["provider"], "openai")
+        self.assertEqual(output["provider"], "ollama")
         self.assertEqual(output["answer"], "grounded answer")
 
 

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Callable
 
 from app.prompts import PromptPackage
 from app.router.ai_router import AIRouter
@@ -24,7 +25,7 @@ class AnswerGenerator:
         *,
         model: str | None = None,
         stream: bool = False,
-        on_token: callable | None = None,
+        on_token: Callable[[str], None] | None = None,
     ) -> GeneratedAnswer:
         result = self.router.generate(
             system_prompt=prompts.system_prompt,

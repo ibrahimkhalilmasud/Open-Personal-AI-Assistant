@@ -11,7 +11,7 @@ class ConfidenceScorer:
         top = sorted((max(0.0, min(1.0, value)) for value in retrieval_scores), reverse=True)[:5]
         average = sum(top) / len(top)
         chunk_bonus = min(0.2, used_chunks * 0.03)
-        return max(0.0, min(1.0, average * 0.8 + chunk_bonus))
+        return max(0.0, min(1.0, average * 0.9 + chunk_bonus))
 
     def label(self, value: float) -> str:
         if value >= 0.9:

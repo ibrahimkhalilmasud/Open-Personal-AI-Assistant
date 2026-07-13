@@ -16,7 +16,7 @@ from app.rag.retriever import HybridRetriever
 INSUFFICIENT_CONTEXT_MESSAGE = "I could not find enough information in your Personal Vault to answer this question."
 
 
-@dataclass(slots=True)
+@dataclass
 class RAGEngine:
     settings: Settings
     router: AIRouter
@@ -98,12 +98,22 @@ class RAGEngine:
         prompt_package = self.prompt_builder.build(question, analysis, context)
 
         model_started = time.perf_counter()
-        generated = self.answer_generator.generate(
-            prompt_package,
-            model=model,
-            stream=stream,
-            on_token=on_token,
-        )
+        generation_error = ""
+        try:
+            generated = self.answer_generator.generate(
+                prompt_package,
+                model=model,
+                stream=stream,
+                on_token=on_token,
+            )
+            answer_text = generated.answer
+            provider_name = generated.provider
+            model_name = generated.model
+        except Exception as exc:
+            generation_error = str(exc)
+            answer_text = self._fallback_answer(question, context)
+            provider_name = "fallback"
+            model_name = model or self.settings.default_model
         model_time = time.perf_counter() - model_started
 
         citations = self.citation_formatter.format(context.chunks)
@@ -113,13 +123,13 @@ class RAGEngine:
 
         total_time = time.perf_counter() - overall_started
         return {
-            "answer": generated.answer,
+            "answer": answer_text,
             "confidence": round(confidence, 2),
             "confidence_label": self.confidence_scorer.label(confidence),
             "sources": sources,
             "citations": self.citation_formatter.to_display_lines(citations),
-            "provider": generated.provider,
-            "model": generated.model,
+            "provider": provider_name,
+            "model": model_name,
             "timings": {
                 "analysis_seconds": round(analysis_time, 4),
                 "retrieval_seconds": round(retrieval_time, 4),
@@ -133,5 +143,14 @@ class RAGEngine:
                 "used_chunks": len(context.chunks),
                 "truncated": context.truncated,
                 "estimated_tokens": context.estimated_tokens,
+                "generation_error": generation_error,
             },
         }
+
+    def _fallback_answer(self, question: str, context: object) -> str:
+        chunks = getattr(context, "chunks", [])
+        lines = [f"I found relevant information for: {question}", "", "Relevant context:"]
+        for chunk in chunks[:3]:
+            excerpt = chunk.text[:220].strip()
+            lines.append(f"- [{chunk.filename}] {excerpt}")
+        return "\n".join(lines).strip()
