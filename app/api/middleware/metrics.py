@@ -28,9 +28,22 @@ async def metrics_middleware(request: Request, call_next):
                     datetime.now(UTC).isoformat(),
                 ),
             )
-            if request.method in {\"POST\", \"PUT\", \"DELETE\"}:
+            if request.method in {"POST", "PUT", "DELETE"}:
                 conn.execute(
-                    \"\"\"\n                    INSERT INTO api_audit_log (request_id, action, resource_type, resource_id, principal, payload_json, created_at)\n                    VALUES (?, ?, ?, ?, ?, ?, ?)\n                    \"\"\",\n+                    (\n+                        getattr(request.state, \"request_id\", \"\"),\n+                        request.method,\n+                        request.url.path,\n+                        \"\",\n+                        principal,\n+                        \"{}\",\n+                        datetime.now(UTC).isoformat(),\n+                    ),\n+                )
+                    """
+                    INSERT INTO api_audit_log (request_id, action, resource_type, resource_id, principal, payload_json, created_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        getattr(request.state, "request_id", ""),
+                        request.method,
+                        request.url.path,
+                        "",
+                        principal,
+                        "{}",
+                        datetime.now(UTC).isoformat(),
+                    ),
+                )
             conn.commit()
     except Exception:
         pass
