@@ -82,38 +82,6 @@ class AgentExecutor:
                 citations=result.citations,
             )
             return result
-
-    def _apply_tool_chain(self, task: Task, payload: dict[str, object]) -> dict[str, object]:
-            if self.tool_executor is None:
-                return payload
-            chain = payload.get("tool_chain")
-            if not isinstance(chain, list) or not chain:
-                return payload
-
-            history = self.tool_executor.execute_chain(
-                chain=chain,
-                agent_name=task.assigned_agent,
-                workflow_name=task.workflow,
-                initial_payload={"question": task.description},
-            )
-            payload = dict(payload)
-            payload["tool_history"] = history
-            if history and history[-1].get("status") == "completed":
-                final_outputs = history[-1].get("tool_outputs", {})
-                if isinstance(final_outputs, dict):
-                    details = final_outputs.get("summary") or final_outputs.get("answer")
-                    if details:
-                        payload["details"] = str(details)
-                citations: list[str] = []
-                for item in history:
-                    citations.extend([str(source) for source in item.get("citations", []) if str(source).strip()])
-                if citations:
-                    payload["citations"] = citations[:10]
-                payload["confidence"] = max(
-                    float(payload.get("confidence", 0.0)),
-                    float(history[-1].get("confidence", 0.0)),
-                )
-            return payload
         except Exception as exc:
             return self._error_result(
                 task=task,
@@ -126,6 +94,38 @@ class AgentExecutor:
                 agent.cleanup()
             except Exception:
                 pass
+
+    def _apply_tool_chain(self, task: Task, payload: dict[str, object]) -> dict[str, object]:
+        if self.tool_executor is None:
+            return payload
+        chain = payload.get("tool_chain")
+        if not isinstance(chain, list) or not chain:
+            return payload
+
+        history = self.tool_executor.execute_chain(
+            chain=chain,
+            agent_name=task.assigned_agent,
+            workflow_name=task.workflow,
+            initial_payload={"question": task.description},
+        )
+        payload = dict(payload)
+        payload["tool_history"] = history
+        if history and history[-1].get("status") == "completed":
+            final_outputs = history[-1].get("tool_outputs", {})
+            if isinstance(final_outputs, dict):
+                details = final_outputs.get("summary") or final_outputs.get("answer")
+                if details:
+                    payload["details"] = str(details)
+            citations: list[str] = []
+            for item in history:
+                citations.extend([str(source) for source in item.get("citations", []) if str(source).strip()])
+            if citations:
+                payload["citations"] = citations[:10]
+            payload["confidence"] = max(
+                float(payload.get("confidence", 0.0)),
+                float(history[-1].get("confidence", 0.0)),
+            )
+        return payload
 
     def _validate_payload(self, payload: dict[str, object]) -> bool:
         details = payload.get("details")
