@@ -2,13 +2,22 @@ from __future__ import annotations
 
 import argparse
 
+from app.agents.context import ContextEngine
+from app.agents.executor import AgentExecutor
+from app.agents.history import AgentHistoryStore
+from app.agents.registry import AgentRegistry
 from app.core.system import create_system
 from app.knowledge_graph.query import KnowledgeGraphQuery
 from app.logging import get_application_logger, get_error_logger
 from app.memory import ConversationMemory, LongTermMemoryEngine, PreferenceMemory, ProjectMemory
 from app.knowledge_graph.timeline import TimelineEngine
 from app.search import SearchEngine
+from app.tasks.executor import TaskExecutionEngine
+from app.tasks.history import TaskHistoryStore
+from app.tasks.planner import TaskPlanner
+from app.tasks.queue import TaskQueue
 from app.vault.engine import VaultEngine
+from app.workflows.registry import WorkflowRegistry
 
 
 def parse_args() -> argparse.Namespace:

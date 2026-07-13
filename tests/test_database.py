@@ -18,6 +18,9 @@ class DatabaseTests(unittest.TestCase):
 
             for table in REQUIRED_TABLES:
                 self.assertIn(table, names)
+            self.assertIn("tasks", names)
+            self.assertIn("task_history", names)
+            self.assertIn("agent_history", names)
             self.assertEqual(files_cols, FILES_COLUMNS)
 
 
