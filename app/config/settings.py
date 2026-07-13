@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 try:
@@ -39,6 +39,11 @@ class Settings:
     telegram_token: str = ""
     email_address: str = ""
     email_password: str = ""
+    api_key_hash_pepper: str = "open-personal-ai-assistant-api-key-v1"
+    cors_allowed_origins: list[str] = field(
+        default_factory=lambda: ["http://localhost", "http://127.0.0.1"]
+    )
+    cors_allow_credentials: bool = False
     settings_validation_report: str = ""
 
 
@@ -55,6 +60,14 @@ def _to_int(value: str | None, default: int) -> int:
         return int(value)
     except ValueError:
         return default
+
+
+def _to_csv_list(value: str | None, default: list[str]) -> list[str]:
+    if value is None:
+        return list(default)
+    items = [item.strip() for item in value.split(",")]
+    normalized = [item for item in items if item]
+    return normalized if normalized else list(default)
 
 
 def _load_env_file() -> None:
@@ -141,6 +154,12 @@ def load_settings() -> Settings:
         telegram_token=os.getenv("TELEGRAM_TOKEN", ""),
         email_address=os.getenv("EMAIL_ADDRESS", ""),
         email_password=os.getenv("EMAIL_PASSWORD", ""),
+        api_key_hash_pepper=os.getenv("OPA_API_KEY_HASH_PEPPER", "open-personal-ai-assistant-api-key-v1"),
+        cors_allowed_origins=_to_csv_list(
+            os.getenv("CORS_ALLOWED_ORIGINS"),
+            ["http://localhost", "http://127.0.0.1"],
+        ),
+        cors_allow_credentials=_to_bool(os.getenv("CORS_ALLOW_CREDENTIALS"), False),
     )
     settings.settings_validation_report = _validate_settings(settings)
     return settings

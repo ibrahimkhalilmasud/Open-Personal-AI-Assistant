@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import hashlib
-import os
 import secrets
 import sqlite3
 from datetime import UTC, datetime
@@ -9,14 +8,14 @@ from datetime import UTC, datetime
 from fastapi import Header, HTTPException, Request, status
 
 
-def hash_api_key(raw_key: str) -> str:
-    pepper = os.getenv("OPA_API_KEY_HASH_PEPPER", "open-personal-ai-assistant-api-key-v1").encode("utf-8")
-    return hashlib.pbkdf2_hmac("sha256", raw_key.encode("utf-8"), pepper, 600_000, dklen=32).hex()
+def hash_api_key(raw_key: str, pepper: str = "open-personal-ai-assistant-api-key-v1") -> str:
+    pepper_value = pepper.encode("utf-8")
+    return hashlib.pbkdf2_hmac("sha256", raw_key.encode("utf-8"), pepper_value, 600_000, dklen=32).hex()
 
 
-def create_api_key(database_path: str, name: str) -> str:
+def create_api_key(database_path: str, name: str, pepper: str = "open-personal-ai-assistant-api-key-v1") -> str:
     raw_key = f"opa_{secrets.token_urlsafe(32)}"
-    key_hash = hash_api_key(raw_key)
+    key_hash = hash_api_key(raw_key, pepper=pepper)
     now = datetime.now(UTC).isoformat()
     with sqlite3.connect(database_path) as conn:
         conn.execute(
@@ -30,10 +29,14 @@ def create_api_key(database_path: str, name: str) -> str:
     return raw_key
 
 
-def validate_api_key(database_path: str, raw_key: str) -> dict[str, object] | None:
+def validate_api_key(
+    database_path: str,
+    raw_key: str,
+    pepper: str = "open-personal-ai-assistant-api-key-v1",
+) -> dict[str, object] | None:
     if not raw_key.strip():
         return None
-    key_hash = hash_api_key(raw_key)
+    key_hash = hash_api_key(raw_key, pepper=pepper)
     with sqlite3.connect(database_path) as conn:
         row = conn.execute(
             "SELECT id, name, is_active FROM api_keys WHERE key_hash = ?",
@@ -58,8 +61,8 @@ async def api_key_auth(request: Request, x_api_key: str | None = Header(default=
     if not x_api_key:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing API key")
 
-    database_path = request.app.state.system.settings.database
-    key = validate_api_key(database_path, x_api_key)
+    settings = request.app.state.system.settings
+    key = validate_api_key(settings.database, x_api_key, pepper=settings.api_key_hash_pepper)
     if key is None:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid API key")
 
