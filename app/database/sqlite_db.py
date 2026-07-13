@@ -33,6 +33,15 @@ REQUIRED_TABLES = (
     "logs",
     "file_text",
     "file_metadata",
+    "entities",
+    "relationships",
+    "projects",
+    "timelines",
+    "preferences",
+    "conversation_memory",
+    "knowledge_memory",
+    "summary_cache",
+    "memory_processing_state",
 )
 
 
@@ -94,6 +103,171 @@ def initialize_database(path: str) -> None:
                     CREATE TABLE IF NOT EXISTS file_metadata (
                         path TEXT PRIMARY KEY,
                         metadata_json TEXT NOT NULL,
+                        updated_at TEXT NOT NULL
+                    )
+                    """
+                )
+                continue
+            if table == "entities":
+                conn.execute(
+                    """
+                    CREATE TABLE IF NOT EXISTS entities (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        canonical_name TEXT NOT NULL,
+                        entity_type TEXT NOT NULL,
+                        aliases_json TEXT NOT NULL DEFAULT '[]',
+                        confidence REAL NOT NULL DEFAULT 0.5,
+                        source_document TEXT NOT NULL DEFAULT '',
+                        memory_version INTEGER NOT NULL DEFAULT 1,
+                        first_seen_at TEXT NOT NULL,
+                        last_seen_at TEXT NOT NULL,
+                        UNIQUE(canonical_name, entity_type)
+                    )
+                    """
+                )
+                conn.execute(
+                    "CREATE INDEX IF NOT EXISTS idx_entities_name ON entities(canonical_name, entity_type)"
+                )
+                continue
+            if table == "relationships":
+                conn.execute(
+                    """
+                    CREATE TABLE IF NOT EXISTS relationships (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        source_entity_id INTEGER NOT NULL,
+                        target_entity_id INTEGER NOT NULL,
+                        relationship_type TEXT NOT NULL,
+                        confidence REAL NOT NULL DEFAULT 0.5,
+                        source_document TEXT NOT NULL DEFAULT '',
+                        memory_version INTEGER NOT NULL DEFAULT 1,
+                        created_at TEXT NOT NULL,
+                        UNIQUE(source_entity_id, target_entity_id, relationship_type, source_document),
+                        FOREIGN KEY(source_entity_id) REFERENCES entities(id),
+                        FOREIGN KEY(target_entity_id) REFERENCES entities(id)
+                    )
+                    """
+                )
+                conn.execute(
+                    "CREATE INDEX IF NOT EXISTS idx_relationships_source ON relationships(source_entity_id)"
+                )
+                conn.execute(
+                    "CREATE INDEX IF NOT EXISTS idx_relationships_target ON relationships(target_entity_id)"
+                )
+                continue
+            if table == "projects":
+                conn.execute(
+                    """
+                    CREATE TABLE IF NOT EXISTS projects (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        name TEXT NOT NULL UNIQUE,
+                        related_files_json TEXT NOT NULL DEFAULT '[]',
+                        related_people_json TEXT NOT NULL DEFAULT '[]',
+                        related_conversations_json TEXT NOT NULL DEFAULT '[]',
+                        summary TEXT NOT NULL DEFAULT '',
+                        confidence REAL NOT NULL DEFAULT 0.5,
+                        source_document TEXT NOT NULL DEFAULT '',
+                        memory_version INTEGER NOT NULL DEFAULT 1,
+                        updated_at TEXT NOT NULL,
+                        created_at TEXT NOT NULL
+                    )
+                    """
+                )
+                conn.execute("CREATE INDEX IF NOT EXISTS idx_projects_name ON projects(name)")
+                continue
+            if table == "timelines":
+                conn.execute(
+                    """
+                    CREATE TABLE IF NOT EXISTS timelines (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        event_date TEXT NOT NULL,
+                        event_type TEXT NOT NULL,
+                        project_name TEXT NOT NULL DEFAULT '',
+                        entity_name TEXT NOT NULL DEFAULT '',
+                        conversation_id INTEGER,
+                        document_path TEXT NOT NULL DEFAULT '',
+                        summary TEXT NOT NULL DEFAULT '',
+                        confidence REAL NOT NULL DEFAULT 0.5,
+                        source_document TEXT NOT NULL DEFAULT '',
+                        created_at TEXT NOT NULL
+                    )
+                    """
+                )
+                conn.execute("CREATE INDEX IF NOT EXISTS idx_timelines_date ON timelines(event_date)")
+                conn.execute("CREATE INDEX IF NOT EXISTS idx_timelines_project ON timelines(project_name)")
+                continue
+            if table == "preferences":
+                conn.execute(
+                    """
+                    CREATE TABLE IF NOT EXISTS preferences (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        preference_key TEXT NOT NULL UNIQUE,
+                        preference_value TEXT NOT NULL,
+                        confidence REAL NOT NULL DEFAULT 0.8,
+                        source_document TEXT NOT NULL DEFAULT '',
+                        memory_version INTEGER NOT NULL DEFAULT 1,
+                        updated_at TEXT NOT NULL,
+                        created_at TEXT NOT NULL
+                    )
+                    """
+                )
+                continue
+            if table == "conversation_memory":
+                conn.execute(
+                    """
+                    CREATE TABLE IF NOT EXISTS conversation_memory (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        question TEXT NOT NULL,
+                        answer TEXT NOT NULL,
+                        referenced_documents TEXT NOT NULL DEFAULT '[]',
+                        ai_provider TEXT NOT NULL DEFAULT '',
+                        confidence REAL NOT NULL DEFAULT 0.5,
+                        source_document TEXT NOT NULL DEFAULT '',
+                        memory_version INTEGER NOT NULL DEFAULT 1,
+                        timestamp TEXT NOT NULL
+                    )
+                    """
+                )
+                conn.execute(
+                    "CREATE INDEX IF NOT EXISTS idx_conversation_memory_timestamp ON conversation_memory(timestamp)"
+                )
+                continue
+            if table == "knowledge_memory":
+                conn.execute(
+                    """
+                    CREATE TABLE IF NOT EXISTS knowledge_memory (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        fact TEXT NOT NULL,
+                        entity_name TEXT NOT NULL DEFAULT '',
+                        confidence REAL NOT NULL DEFAULT 0.5,
+                        source_document TEXT NOT NULL,
+                        memory_version INTEGER NOT NULL DEFAULT 1,
+                        timestamp TEXT NOT NULL
+                    )
+                    """
+                )
+                conn.execute("CREATE INDEX IF NOT EXISTS idx_knowledge_fact ON knowledge_memory(fact)")
+                continue
+            if table == "summary_cache":
+                conn.execute(
+                    """
+                    CREATE TABLE IF NOT EXISTS summary_cache (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        summary_type TEXT NOT NULL,
+                        subject_key TEXT NOT NULL,
+                        summary_text TEXT NOT NULL,
+                        source_signature TEXT NOT NULL,
+                        updated_at TEXT NOT NULL,
+                        UNIQUE(summary_type, subject_key)
+                    )
+                    """
+                )
+                continue
+            if table == "memory_processing_state":
+                conn.execute(
+                    """
+                    CREATE TABLE IF NOT EXISTS memory_processing_state (
+                        file_path TEXT PRIMARY KEY,
+                        signature TEXT NOT NULL,
                         updated_at TEXT NOT NULL
                     )
                     """

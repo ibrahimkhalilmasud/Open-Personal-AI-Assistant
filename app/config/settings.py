@@ -25,6 +25,10 @@ class Settings:
     database: str = "data/database.db"
     log_level: str = "INFO"
     default_model: str = "qwen3"
+    max_context_chunks: int = 12
+    max_context_tokens: int = 12000
+    query_synonyms_file: str = ""
+    model_timeout_seconds: int = 45
     enable_memory: bool = True
     enable_voice: bool = True
     enable_camera: bool = False
@@ -81,6 +85,12 @@ def _validate_settings(settings: Settings) -> str:
         errors.append("CHUNK_OVERLAP must be smaller than CHUNK_SIZE")
     if settings.embed_batch_size <= 0:
         errors.append("EMBED_BATCH_SIZE must be > 0")
+    if settings.max_context_chunks <= 0:
+        errors.append("MAX_CONTEXT_CHUNKS must be > 0")
+    if settings.max_context_tokens <= 0:
+        errors.append("MAX_CONTEXT_TOKENS must be > 0")
+    if settings.model_timeout_seconds <= 0:
+        warnings.append("MODEL_TIMEOUT_SECONDS should be > 0; using defaults is recommended")
     if settings.scan_interval <= 0:
         warnings.append("SCAN_INTERVAL should be > 0; using defaults is recommended")
     if not settings.vault_path.strip():
@@ -117,6 +127,10 @@ def load_settings() -> Settings:
         database=database,
         log_level=os.getenv("LOG_LEVEL", "INFO"),
         default_model=os.getenv("DEFAULT_MODEL", "qwen3"),
+        max_context_chunks=_to_int(os.getenv("MAX_CONTEXT_CHUNKS"), 12),
+        max_context_tokens=_to_int(os.getenv("MAX_CONTEXT_TOKENS"), 12000),
+        query_synonyms_file=os.getenv("QUERY_SYNONYMS_FILE", ""),
+        model_timeout_seconds=_to_int(os.getenv("MODEL_TIMEOUT_SECONDS"), 45),
         enable_memory=_to_bool(os.getenv("ENABLE_MEMORY"), True),
         enable_voice=_to_bool(os.getenv("ENABLE_VOICE"), True),
         enable_camera=_to_bool(os.getenv("ENABLE_CAMERA"), False),
